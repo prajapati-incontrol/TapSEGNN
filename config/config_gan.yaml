@@ -1,0 +1,56 @@
+description: > 
+  Configuration for GAN experiment in /notebooks/rq_4_gans.ipynb
+
+device: cpu 
+
+# dataset 
+data: 
+  net_name: DFT_TNP 
+  gen_scenario_type: 9
+  dis_scenario_type: 8
+  num_samples: 4096
+  load_std:  0.1
+  noise: True 
+
+# loader 
+loader: 
+  batch_size: 64
+
+# generator model config 
+model_G:
+  name: NEGATGenerator 
+  node_out_features: 32 # node encoding dimension GNN output
+  edge_out_features: 1 # edge encoding dimension SCNN output
+  list_node_hidden_features: [64] # hidden dimensions of GNN [a,b] implies two layers of dimensions a, b
+  list_edge_hidden_features: [128] # hidden dimensions of SCNN 
+  k_hop_node: 3 # GNN Filter order
+  k_hop_edge: 1 # SCNN filter order
+  gat_out_features:  32 # GATConv output node encoding dimensions 
+  gat_head: 1 # head count of GATConv
+  bias: True 
+  normalize: True # Layer norm 
+
+# generator training config 
+training_G: 
+  lr: 0.01
+  weight_decay: 0.0000
+  schedular_min_lr: 0.0001
+
+# discriminator model config 
+model_D: 
+  hidden_channel: 64
+  out_channel: 32
+
+# discriminator training config 
+training_D: 
+  lr: 0.00001
+  weight_decay: 0.00001
+  schedular_min_lr: 0.00001
+
+# training min-max gan 
+training_GAN: 
+  num_epoch: 50
+  disc_iter: 2
+  gen_iter: 1
+  early_stopping: False
+  val_patience: 5 

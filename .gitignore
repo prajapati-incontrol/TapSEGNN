@@ -1,0 +1,57 @@
+# Ignore all .log files
+*.log 
+logs/
+
+# Ignore htmls 
+*.html
+
+# Ignore all .mp4 files
+*.mp4
+
+# Ignore all .pdf files
+*.pdf 
+
+# Ignore all images 
+*.jpg
+*.png
+
+# Ignore zip files
+*.zip
+
+# Ignore dataset folder 
+data/
+
+# Ignore net pickles 
+*.p
+*.pkl
+
+# virtual environment 
+.venv/
+
+# some datastore
+.DS_Store
+
+# ignore excel or csv files 
+*.csv 
+*.xlsx
+
+# ignore particular files 
+mvp_nx.ipynb
+temp.py
+**/__pycache__/
+# some non-important experiments 
+analysis/*exp.ipynb
+*exp.ipynb
+*exp.py
+experiments_1.ipynb
+
+# model parameters 
+*.pth
+config/*.pth
+
+
+
+# manim files 
+manimations/media 
+manimations/__pycache__ 
+manimations/*.pkl

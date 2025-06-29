@@ -1,0 +1,53 @@
+description: > 
+  Tap-position prediction and state-estimation using Graph 
+  Neural Networks
+
+device: cpu
+
+# dataset 
+data: 
+  net_name: DFT_TNP # name of the network 
+  scenario_type: 9 # scenario type to generate samples 
+  num_samples: 4096 # number of samples 
+  trafo_ids: ["all"] # what transformer ids to estimates? either a list or ["all"] for all trafos. 
+  noise: True # apply noise on the non-parameters of the networks like voltage, power etc.
+  scaler: True # apply scaler on the node and edge features 
+  load_std: 0.1
+
+# loader 
+loader: 
+  batch_size: 64 # batch size of dataloader 
+  split_list: [0.8, 0.1, 0.1] # split ratio for train, val, test
+
+# model config 
+model: 
+  name: NEGATRegressor
+  # name: MultiTapSEGNN 
+  node_out_features: 32 # node encoding dimension GNN output
+  edge_out_features: 64 # edge encoding dimension SCNN output
+  list_node_hidden_features: [64] # hidden dimensions of GNN [a,b] implies two layers of dimensions a, b
+  list_edge_hidden_features: [128] # hidden dimensions of SCNN 
+  k_hop_node: 3 # GNN Filter order
+  k_hop_edge: 1 # SCNN filter order
+  trafo_hop: 1 # trafo k-hop 1: consider 1-hop neighbors in addition to terminal nodes
+  gat_out_features:  32 # GATConv output node encoding dimensions 
+  gat_head: 1 # head count of GATConv
+  bias: True 
+  normalize: True # Layer norm 
+
+# training config 
+training: 
+  lr: 0.01 
+  weight_decay: 0.001 # L2 reg 
+  schedular_min_lr: 0.0001 # min lr for schedular 
+  num_epochs: 100 # number of epochs 
+  early_stopping: False 
+  val_patience: 5 # Validation patience for early stopping 
+  loss_tap_weight: 0.1 # weight on tap-changer prediction loss function 
+
+# plot config 
+plot: 
+  plot_log: True # plot in logarithmic scale 
+  last_epochs: None # plot last (int) epochs only  
+
+
