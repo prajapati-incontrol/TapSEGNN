@@ -31,34 +31,6 @@ def initialize_network(net_name: str,
     # else_load = 1.0
 
     match net_name: 
-        case 'DFT_TNP':
-            # load delft network 
-            # net = pp.from_pickle(parent_dir + '/data/net_pp/net_DFT_TNP.p')
-            net = pp.from_excel(parent_dir + f'/data/DELFT 11 TECHNOPOLIS/net_DFT_TNP0.xlsx')
-            # net = add_dft_tnp_load_std(net, else_load=else_load)
-            net.load.loc[:, 'p_std'] = else_load
-            net.name = net_name
-            if verbose: 
-                nonhv_trafo_ids = ~net.trafo.loc[:,"name"].str.contains("HV", na=False)
-                mvlv_trafo_ids = list(net.trafo.loc[nonhv_trafo_ids].index)
-                min_mvlv = min(mvlv_trafo_ids)
-                max_mvlv = max(mvlv_trafo_ids)
-                print(f"Transformer Indices for {net_name} are available from [{min_mvlv},{max_mvlv}] \n")
-                print(f"Number of Trafos = {len(net.trafo)} \n ")
-            
-        case 'GHE_NDP2':
-            net = pp.from_excel(parent_dir + f'/data/NOOTDORP 02/net_GHE_NDP2_0.xlsx')
-            net.load.loc[:, 'p_std'] = else_load
-            # net = add_dft_tnp_load_std(net, else_load=else_load)
-            net.name = net_name
-            if verbose: 
-                nonhv_trafo_ids = ~net.trafo.loc[:,"name"].str.contains("HV", na=False)
-                mvlv_trafo_ids = list(net.trafo.loc[nonhv_trafo_ids].index)
-                min_mvlv = min(mvlv_trafo_ids)
-                max_mvlv = max(mvlv_trafo_ids)
-                print(f"Transformer Indices for {net_name} are available from [{min_mvlv},{max_mvlv}] \n")
-                print(f"Number of Trafos = {len(net.trafo)} \n ")
-        
         case 'PP_MV_RING':
             net = pp.networks.simple_pandapower_test_networks.simple_mv_open_ring_net()
             net.load.loc[:, 'p_std'] = else_load
@@ -98,42 +70,6 @@ def initialize_network(net_name: str,
                 print(f"Transformer Indices for {net_name} are available from [{min_mvlv},{max_mvlv}] \n")
                 print(f"Number of Trafos = {len(net.trafo)} \n ")
     
-        case 'UTR_UKW': # num nodes = 953 
-            net = pp.from_excel(parent_dir + f'/data/UTRECHT KERNWEG/net_UTR_UKW0.xlsx')
-            net.load.loc[:, 'p_std'] = else_load
-            net.name = net_name
-            if verbose: 
-                nonhv_trafo_ids = ~net.trafo.loc[:,"name"].str.contains("HV", na=False)
-                mvlv_trafo_ids = list(net.trafo.loc[nonhv_trafo_ids].index)
-                min_mvlv = min(mvlv_trafo_ids)
-                max_mvlv = max(mvlv_trafo_ids)
-                print(f"Transformer Indices for {net_name} are available from [{min_mvlv},{max_mvlv}] \n")
-                print(f"Number of Trafos = {len(net.trafo)} \n ")
-
-        case 'RDM_ZWK': # num nodes = 985
-            net = pp.from_excel(parent_dir + f'/data/ZUIDWIJK/net_RDM_ZWK0.xlsx')
-            net.load.loc[:, 'p_std'] = else_load
-            net.name = net_name
-
-            if verbose: 
-                # all trafos are mv/lv here!!!
-                mvlv_trafo_ids = list(net.trafo.index)
-                min_mvlv = min(mvlv_trafo_ids)
-                max_mvlv = max(mvlv_trafo_ids)
-                print(f"Transformer Indices for {net_name} are available from [{min_mvlv},{max_mvlv}] \n")
-                print(f"Number of Trafos = {len(net.trafo)} \n ")
-        
-        case 'KLW_KL': # num nodes = 658
-            net = pp.from_excel(parent_dir + f'/data/KLAASWAAL/net_KLW_KL0.xlsx')
-            net.load.loc[:, 'p_std'] = else_load
-            if verbose: 
-                nonhv_trafo_ids = ~net.trafo.loc[:,"name"].str.contains("HV", na=False)
-                mvlv_trafo_ids = list(net.trafo.loc[nonhv_trafo_ids].index)
-                min_mvlv = min(mvlv_trafo_ids)
-                max_mvlv = max(mvlv_trafo_ids)
-                print(f"Transformer Indices for {net_name} are available from [{min_mvlv},{max_mvlv}] \n")
-                print(f"Number of Trafos = {len(net.trafo)} \n ")
-
         case _:
             raise NameError("\n Invalid Network Name! ")
         
@@ -177,41 +113,6 @@ def get_trafo_ids_from_percent(net: pp.pandapowerNet, trafo_id_percent: int):
         case 100: 
             return ["all"]
 
-
-
-
-
-#####################################################################################
-
-def add_dft_tnp_load_std(net: pp.pandapowerNet, else_load: float = 1e-3):
-    """Add load standard deviation from Stedin Data to all measured loads."""
-    # load_std_bus = {bus: load_std} in [MW]
-    load_std_bus = {11: 0.0, 
-                    21: 4.1e-5,
-                    9: 7.1e-5,
-                    8: 16.2e-5,
-                    7: 6.7e-5,
-                    23: 20.5e-5,
-                    20: 3e-6,
-                     6: 3.9e-5,
-                     5: 3.0e-5,
-                     10:1.3e-5,
-                     15: 4.5e-5,
-                     12: 6.3e-5,
-                     19: 25.8e-5,
-                     13: 4.4e-5,
-                     16: 2.6e-5, 
-                     17: 7.5e-5, 
-                     22: 4.1e-5}
-    
-    for idx, row in net.load.iterrows(): 
-        bus = row.bus 
-        if bus in load_std_bus.keys(): 
-            net.load.loc[idx, 'p_std'] = load_std_bus[bus]
-        else: 
-            net.load.loc[idx, 'p_std'] = else_load 
-    
-    return net
 
 #####################################################################################
 

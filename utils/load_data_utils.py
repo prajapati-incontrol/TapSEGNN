@@ -640,15 +640,10 @@ def load_sc_9(net: pp.pandapowerNet,
     # account for real measurements 
     node_mask = np.zeros((num_samples, num_buses, num_node_features))
     edge_mask = np.zeros((num_samples, num_edges, num_edge_features))
-    
-    
-    if net.name == 'DFT_TNP':
-        node_mask, edge_mask = get_dft_tnp_mask(net, node_mask, edge_mask)
 
-    else: 
-        sparsity_prob = 0.5
-        node_mask = get_array_mask(node_input_features, sparsity_prob=sparsity_prob)
-        edge_mask[:,:,0] = get_array_mask(edge_mask[:,:,0], sparsity_prob=0.5)
+    sparsity_prob = 0.5
+    node_mask = get_array_mask(node_input_features, sparsity_prob=sparsity_prob)
+    edge_mask[:,:,0] = get_array_mask(edge_mask[:,:,0], sparsity_prob=0.5)
 
     edge_mask[:,:,1:] = 1 # parameters are considered known.
     if noise: 
@@ -981,47 +976,26 @@ def load_sc_7(net: pp.pandapowerNet,
     # convert y_label to tensor from numpy array
     y_label = torch.tensor(y_label, dtype=torch.float32)
 
-    if net.name == "DFT_TNP": 
-        vp_meas_bus = np.array([0,1,2,3,5,7,11,17,22])
-        # non_meas_bus_mask = np.ones(num_buses, dtype=bool)
-        # non_meas_bus_mask[vp_meas_bus] = False
 
-        pqflow_meas_bus = np.array([5,7,11,17,22])
+    # consider 50% buses with measurements 
+    # randomly sample bus indices out of all buses 
+    all_buses = np.array(net.bus.index) 
+    fiftyp_bus_mask = np.random.rand(all_buses.size) >= 0.5
+    fiftyp_buses = [bus_id for bus_id in all_buses if fiftyp_bus_mask[bus_id]]
+    
+    # add low std pfr as meas
+    node_input_features_noisy[:, fiftyp_buses, :] = np.random.normal(node_input_features[:, fiftyp_buses, :], std_meas)
+
+    # for pqflows 
+    for iline, line in net.line.iterrows(): 
+        from_bus = int(line.from_bus)
+        to_bus = int(line.to_bus)
+
+        if to_bus in fiftyp_buses:
+            edge_input_features_noisy[:, iline, [2,3]] = np.random.normal(edge_input_features_noisy[:, iline, [2,3]], std_meas)
         
-        # apply noise to V, P
-        node_input_features_noisy[:, vp_meas_bus, :] = np.random.normal(node_input_features[:, vp_meas_bus, :], std_meas)
-        
-        # apply noise to PQFLOW: P_in, P_out, Q_in, Q_out only for lines. (because trafo PQFlows are not measured.)
-        for iline, line in net.line.iterrows(): 
-            from_bus = int(line.from_bus)
-            to_bus = int(line.to_bus)
-
-            if to_bus in pqflow_meas_bus:
-                edge_input_features_noisy[:, iline, [2,3]] = np.random.normal(edge_input_features_noisy[:, iline, [2,3]], std_meas)
-
-            if from_bus in pqflow_meas_bus: 
-                edge_input_features_noisy[:, iline, :2] = np.random.normal(edge_input_features_noisy[:, iline, :2], std_meas)
-
-    else: 
-        # consider 50% buses with measurements 
-        # randomly sample bus indices out of all buses 
-        all_buses = np.array(net.bus.index) 
-        fiftyp_bus_mask = np.random.rand(all_buses.size) >= 0.5
-        fiftyp_buses = [bus_id for bus_id in all_buses if fiftyp_bus_mask[bus_id]]
-        
-        # add low std pfr as meas
-        node_input_features_noisy[:, fiftyp_buses, :] = np.random.normal(node_input_features[:, fiftyp_buses, :], std_meas)
-
-        # for pqflows 
-        for iline, line in net.line.iterrows(): 
-            from_bus = int(line.from_bus)
-            to_bus = int(line.to_bus)
-
-            if to_bus in fiftyp_buses:
-                edge_input_features_noisy[:, iline, [2,3]] = np.random.normal(edge_input_features_noisy[:, iline, [2,3]], std_meas)
-            
-            if from_bus in fiftyp_buses: 
-                edge_input_features_noisy[:, iline, :2] = np.random.normal(edge_input_features_noisy[:, iline, :2], std_meas)
+        if from_bus in fiftyp_buses: 
+            edge_input_features_noisy[:, iline, :2] = np.random.normal(edge_input_features_noisy[:, iline, :2], std_meas)
 
     
     node_input_features_noisy = torch.tensor(node_input_features_noisy, dtype=torch.float32)
@@ -1211,14 +1185,10 @@ def load_sc_6(net: pp.pandapowerNet,
     node_mask = np.zeros((num_samples, num_buses, num_node_features))
     edge_mask = np.zeros((num_samples, num_edges, num_edge_features))
     edge_mask[:,:,4:] = 1 # parameters are considered known.
-    
-    if net.name == 'DFT_TNP':
-        node_mask, edge_mask = get_dft_tnp_mask(net, node_mask, edge_mask)
-    
-    else: 
-        sparsity_prob = 0.5
-        node_mask = get_array_mask(node_input_features, sparsity_prob=sparsity_prob)
-        edge_mask = get_array_mask(edge_input_features, sparsity_prob=sparsity_prob)
+
+    sparsity_prob = 0.5
+    node_mask = get_array_mask(node_input_features, sparsity_prob=sparsity_prob)
+    edge_mask = get_array_mask(edge_input_features, sparsity_prob=sparsity_prob)
 
     if noise: 
         edge_input_features_noisy = copy.deepcopy(edge_input_features)
@@ -1257,79 +1227,6 @@ def load_sc_6(net: pp.pandapowerNet,
             raise ValueError("NaN in input data to train!")
 
         return node_input_features, node_vapq, edge_input_features, y_label, y_trafo_label, node_mask, edge_mask
-
-#####################################################################################
-
-def get_dft_tnp_mask(net: pp.pandapowerNet, 
-                     node_mask: np.array, 
-                     edge_mask: np.array) -> Tuple: 
-    """
-    Puts 1 where measurements are available for node and edge features. 
-    Keeps 1 by default for edge-features that are line/trafo parameters.
-    """
-    v_at_meas = np.array([0,1,2,3,5,7,11,17,22])
-    p_at_meas = v_at_meas
-
-    node_mask[:, v_at_meas, :] = 1 # accounts for both v and p measurements 
-    
-    # meas at buses 
-    pq_flow_meas = np.array([5,7,11,17,22])
-
-    for iline, line in net.line.iterrows(): 
-        from_bus = int(line.from_bus)
-        to_bus = int(line.to_bus)
-
-        if to_bus in pq_flow_meas: 
-            edge_mask[:, iline, [2,3]] = 1 
-
-        if from_bus in pq_flow_meas: 
-            edge_mask[:, iline, :2] = 1
-
-    return node_mask, edge_mask
-
-
-#####################################################################################
-#####################################################################################
-
-def get_dft_tnp_mask_sc9(net: pp.pandapowerNet, 
-                     node_mask: np.array, 
-                     edge_mask: np.array) -> Tuple: 
-    """
-    Puts 1 where measurements are available for node and edge features. 
-    Keeps 1 by default for edge-features that are line/trafo parameters.
-    """
-    v_at_meas = np.array([0,1,2,3,5,7,11,17,22])
-    p_at_meas = v_at_meas
-
-    node_mask[:, v_at_meas, :] = 1 # accounts for both v and p measurements 
-    
-    # meas at buses 
-    pq_flow_meas = np.array([5,7,11,17,22])
-
-    for iline, line in net.line.iterrows():
-        from_bus = int(line.from_bus)
-        to_bus = int(line.to_bus)
-
-        if to_bus in pq_flow_meas: 
-            edge_mask[:, iline, 0] = 1 
-        
-        if from_bus in pq_flow_meas: 
-            edge_mask[:, iline, 0] = 1
-
-    num_lines = len(net.line)
-
-    for itrafo, trafo in net.trafo.iterrows(): 
-        hv_bus = int(trafo.hv_bus)
-        lv_bus = int(trafo.lv_bus)
-
-        if hv_bus in pq_flow_meas: 
-            edge_mask[:, num_lines + itrafo, 0] = 1 
-        
-        if lv_bus in pq_flow_meas: 
-            edge_mask[:, num_lines + itrafo, 0] = 1
-
-    
-    return node_mask, edge_mask
 
 #####################################################################################
 

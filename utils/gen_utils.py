@@ -40,7 +40,7 @@ def precision_round(number, significant_digits=3):
 def create_report_directory(current_time: str) -> str:
     """Create and return the path to a new directory for report output."""
     # current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-    report_dir = f"{parent_dir}/results/June/{current_time}/"
+    report_dir = f"{parent_dir}/results/{current_time}/"
     os.makedirs(report_dir, exist_ok=True)
     return report_dir
 
