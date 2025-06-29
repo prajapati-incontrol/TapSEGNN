@@ -6,10 +6,10 @@ device: cpu
 
 # dataset 
 data: 
-  net_name: DFT_TNP # name of the network 
+  net_name: MVO # name of the network 
   scenario_type: 9 # scenario type to generate samples 
-  num_samples: 4096 # number of samples 
-  trafo_ids: ["all"] # what transformer ids to estimates? either a list or ["all"] for all trafos. 
+  num_samples: 256 # number of samples 
+  trafo_ids: [] # what transformer ids to estimates? either a list or ["all"] for all trafos. 
   noise: True # apply noise on the non-parameters of the networks like voltage, power etc.
   scaler: True # apply scaler on the node and edge features 
   load_std: 0.1
