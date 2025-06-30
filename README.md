@@ -6,6 +6,13 @@ A GAN-GNN framework for topology-aware state and transformer tap position estima
 ## Visualisation of the State Estimation of the Trained Model on a real MV/LV network
 
 
+<p align="center">
+  <img src="manimations/tapsegnn_v_pu_new.gif" width="400" />
+  <img src="manimations/tapsegnn_v_deg_newq.gif" width="400" />
+</p>
+
+
+
 ### Installation
 
 1. Clone this repository:
