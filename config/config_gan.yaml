@@ -5,7 +5,7 @@ device: cpu
 
 # dataset 
 data: 
-  net_name: DFT_TNP 
+  net_name: MVO 
   gen_scenario_type: 9
   dis_scenario_type: 8
   num_samples: 4096
