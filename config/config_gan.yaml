@@ -5,7 +5,7 @@ device: cpu
 
 # dataset 
 data: 
-  net_name: MVO 
+  net_name: TOY 
   gen_scenario_type: 9
   dis_scenario_type: 8
   num_samples: 4096
@@ -49,7 +49,7 @@ training_D:
 
 # training min-max gan 
 training_GAN: 
-  num_epoch: 50
+  num_epoch: 100
   disc_iter: 2
   gen_iter: 1
   early_stopping: False

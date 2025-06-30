@@ -45,7 +45,7 @@ def initialize_network(net_name: str,
         
         case 'TOY':
             # load toy network
-            net = pp.from_pickle(parent_dir + '/data/net_pp/net_TOY.p')
+            net = pp.from_pickle(parent_dir + '/data/net_TOY.p')
             net.load.loc[:, 'p_std'] = else_load
             net.trafo.shift_degree = 0.0
             net.name = net_name 
