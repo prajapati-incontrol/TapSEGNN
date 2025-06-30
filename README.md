@@ -33,20 +33,42 @@ pip install -r requirements.txt
 
 ```
 scnn-jax/
-├── log/                    # log files
-       ├── script_log.txt
-├── data/                   # Sample transmission system data and graphs
-├── src/                    # Source files 
-       ├── dataset/         # Custom Dataset Object
-       ├── model/           # SCNN models 
-       ├── training/        # Trainer functions 
-├── utils.py                # Topology and data processing utilities
-├── main.py                 # Orchestrate everything
-├── requirements.txt        # Python dependencies
-└── README.md               # Project documentation
+├── config/                              # Configuration files and hyperparameter settings
+   ├── config.yaml                       # Primary configuration for state estimation experiments
+   ├── config_gan.yaml                   # Configuration parameters for GAN-based models and training
+├── manimations/                         # Mathematical animations and visualisations using Manim
+├── results/                             # Experiment outputs and analysis
+   │                                     # Auto-generated Jupyter notebooks documenting each experiment run
+   │                                     # Includes configuration, performance metrics and plots
+├── src/                                 # Source files
+   ├── dataset/                          
+   │   ├── custom_dataset.py             # Custom dataset classes for power system data loading
+   │                                     
+   ├── model/                            
+   │   ├── graph_model.py                # Graph neural network implementations 
+   │                                     
+   ├── training/                         
+       ├── trainer.py                    # Main training orchestrator with loss functions and metrics
+                                         # Supports both supervised and adversarial training modes
+├── utils/                               
+   ├── gen_utils.py                      # General-purpose utility functions
+   │                                     
+   ├── load_data_utils.py                # Data loading and preprocessing utilities
+   │                                     
+   ├── model_utils.py                    # Model-specific utility functions
+   │                                     
+   ├── plot_utils.py                     # Visualisation and plotting utilities
+   │                                     
+   ├── ppnet_utils.py                    # Pandapower network interface utilities
+                                         
+├── main.py                              # Main execution script and experiment orchestrator
+│                                        
+│                                        
+├── requirements.txt                     # Python package dependencies and version specifications
+│                                        
+└── README.md                            # Project Documentation
+                                         
 ```
-
----
 
 
 ## Contributing
