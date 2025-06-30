@@ -402,7 +402,7 @@ def custom_se(net: pp.pandapowerNet,
         print(f"State estimation successful for {net.name}!")
         # number of measurements 
         print(f"Total number of measurements = {n_meas} and number of measurements should be at least {2*n_bus - 1}")
-        
+        # print(net)
         return net
     elif not success and se_iter > 1:
         # if verbose:
