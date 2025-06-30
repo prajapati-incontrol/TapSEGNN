@@ -72,7 +72,7 @@ scnn-jax/
                                          
 ```
 
-_Note: Due to the use of private MV (Medium Voltage) network data, detailed analysis notebooks are not posted yet in this repository_
+_Note: Due to the use of private MV (Medium Voltage) network data, detailed analysis notebooks on open-source networks are currently being prepared and will be posted ASAP._
 
 ## Contributing
 
