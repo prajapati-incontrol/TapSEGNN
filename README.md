@@ -18,8 +18,8 @@ A GAN-GNN framework for topology-aware state and transformer tap position estima
 1. Clone this repository:
 
 ```bash
-git clone https://github.com/prajapati-incontrol/gd4ps-jax.git
-cd gd4ps-jax
+git clone https://github.com/prajapati-incontrol/TapSEGNN.git
+cd TapSEGNN
 ```
 
 
