@@ -81,6 +81,14 @@ scnn-jax/
 
 _Note: Due to the use of private MV (Medium Voltage) network data, detailed analysis notebooks on open-source networks are currently being prepared and will be posted ASAP._
 
+## The Way Forward 
+
+1. Add a custom `collate` function to optimise the computation of transformer readout layers instead of forward pass in `src/model/graph_models.py`.
+2. Speed up the calculation of Hodge-Laplacians in `utils/gen_utils.py`.
+3. (Bit ambitious) Distributed computation using PyTorch Geometric algorithms. 
+
+
+
 ## Contributing
 
 Contributions are welcome! Please feel free to submit issues, fork the repo, and create pull requests.
