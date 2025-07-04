@@ -41,7 +41,7 @@ pip install -r requirements.txt
 ## 📁 Project Structure
 
 ```
-scnn-jax/
+TapSEGNN/
 ├── config/                              # Configuration files and hyperparameter settings
    ├── config.yaml                       # Primary configuration for state estimation experiments
    ├── config_gan.yaml                   # Configuration parameters for GAN-based models and training
