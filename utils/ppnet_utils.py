@@ -378,13 +378,12 @@ def add_branch_parameters(net: pp.pandapowerNet):
     net.line.loc[:, 'b_pu'] = b_pu
 
     # convert g_us_per_km to g_mho
-    g_pu = ( 2 * np.pi * sys_freq * net.line['g_us_per_km'] * 10**(-6) * net.line['length_km'] * net.line['parallel']) * (net.bus['vn_kv'].loc[net.line['from_bus'].values]**2/net.sn_mva).values
+    g_pu = ( net.line['g_us_per_km'] * 10**(-6) * net.line['length_km'] * net.line['parallel']) * (net.bus['vn_kv'].loc[net.line['from_bus'].values]**2/net.sn_mva).values
     net.line.loc[:, 'g_pu'] = g_pu
 
     # add zeros for tap and shift degree in lines 
     net.line.loc[:, 'tap_nom'] = 0 
     net.line.loc[:, 'shift_rad'] = 0
-
 
     y_sh = g_pu - 1j*b_pu    
 
@@ -457,7 +456,6 @@ def add_branch_parameters(net: pp.pandapowerNet):
 
 def drop_hv_trafos(net:pp.pandapowerNet):
     """
-    NOTE: Always call this function after add_branch_parameters(net_name)
     NOTE: Never run power flow after calling this function.
     
     Drop Trafo rows for HV trafos. Useful for analysing MV/LV Trafo parameters.
@@ -861,8 +859,8 @@ def get_power_flow_edge_index(net):
 
 #     # short-circuit impedance
 #     net.trafo['x_per_unit'] = np.sqrt(zmag_per_unit**2 - net.trafo['r_per_unit']**2)    
-#     if is_rq2: 
-#         net.trafo['X_ohm'] = net.trafo['x_per_unit'] * Z_N / Z_ref_trafo
+#     # if is_rq2: 
+#     #     net.trafo['X_ohm'] = net.trafo['x_per_unit'] * Z_N / Z_ref_trafo
 
 #     # 2. magnetising losses: eddy currents and hysterisis 
 #     # magnetising conductance g
@@ -876,8 +874,8 @@ def get_power_flow_edge_index(net):
 #     net.trafo['b_per_unit'] = np.sqrt(y_sh**2- net.trafo['g_per_unit']**2)
 
 #     # add tap ratios 
-#     if any(net.trafo.tap_phase_shifter):
-#         print(f"Network has {sum(net.trafo.tap_phase_shifter)} phase-shifting transformers.")
+#     # if any(net.trafo.tap_phase_shifter):
+#     #     print(f"Network has {sum(net.trafo.tap_phase_shifter)} phase-shifting transformers.")
 
 #     if "tap_pos" in net.trafo.columns: # does not exist 
 #         print("No column named trafo.tap_pos, using tap_ratios...")
