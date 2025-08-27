@@ -387,32 +387,32 @@ def add_branch_parameters(net: pp.pandapowerNet):
 
     y_sh = g_pu - 1j*b_pu    
 
-    # get Y-bus for lines only 
-    a_1 = y_series + y_sh/2
-    a_2 = - y_series
-    a_3 = - y_series
-    a_4 = y_series + y_sh/2
+    # # get Y-bus for lines only 
+    # a_1 = y_series + y_sh/2
+    # a_2 = - y_series
+    # a_3 = - y_series
+    # a_4 = y_series + y_sh/2
 
-    yb_size = len(net.bus)
+    # yb_size = len(net.bus)
 
-    Ybline = np.zeros((yb_size, yb_size)).astype(complex)
+    # Ybline = np.zeros((yb_size, yb_size)).astype(complex)
 
-    fb_line = net.line.from_bus 
-    tb_line = net.line.to_bus 
+    # fb_line = net.line.from_bus 
+    # tb_line = net.line.to_bus 
 
-    line_idx = net.line.index 
+    # line_idx = net.line.index 
 
-    for (idx, fb, tb) in zip(line_idx, fb_line, tb_line): 
-        Ybline[fb, fb] = complex(a_1[idx])
-        Ybline[fb, tb] = complex(a_2[idx])
-        Ybline[tb, fb] = complex(a_3[idx])
-        Ybline[tb, tb] = complex(a_4[idx])
+    # for (idx, fb, tb) in zip(line_idx, fb_line, tb_line): 
+    #     Ybline[fb, fb] = complex(a_1[idx])
+    #     Ybline[fb, tb] = complex(a_2[idx])
+    #     Ybline[tb, fb] = complex(a_3[idx])
+    #     Ybline[tb, tb] = complex(a_4[idx])
 
-    # get the pandpaower internal YBus 
-    pp.runpp(net)
-    Ybus = np.array(net._ppc["internal"]["Ybus"].todense())
+    # # get the pandpaower internal YBus 
+    # pp.runpp(net)
+    # Ybus = np.array(net._ppc["internal"]["Ybus"].todense())
 
-    Ybus_trafo = Ybus - Ybline 
+    # Ybus_trafo = Ybus - Ybline 
 
     if sum(net.trafo.tap_pos.isna()) > 0: 
         print("Filling nan as 0 in tap_pos, tap_neutral, tap_step_degree")
@@ -420,7 +420,30 @@ def add_branch_parameters(net: pp.pandapowerNet):
         net.trafo.loc[net.trafo.loc[:,'tap_neutral'].isna(),'tap_neutral'] = 0
         net.trafo.loc[net.trafo.loc[:,'tap_step_degree'].isna(),'tap_step_degree'] = 0
         
-        
+    # transformer parameters 
+
+    # series impedance: SCT
+    net.trafo.loc[:,"r_pu"] = net.trafo['vkr_percent'] /100  * net.sn_mva / net.trafo['sn_mva']
+    z_pu = net.trafo['vk_percent']/100 * net.sn_mva / net.trafo['sn_mva']
+    net.trafo.loc[:,"x_pu"] = np.sqrt(z_pu**2 - net.trafo['r_pu']**2)
+
+    # shunt impedance: OCT
+    z_base_oct = (net.trafo.vn_lv_kv * 1e3)**2 / (net.trafo.sn_mva * 1e6)
+    i_base_oct = net.trafo.sn_mva * 1e6 / (net.trafo.vn_lv_kv*1e3)
+    i0 = net.trafo.i0_percent/100 * i_base_oct 
+
+    # calculating power factor angle with error handling 
+    power_factor_angle = np.acos(net.trafo.pfe_kw / (net.trafo.vn_lv_kv * i0))
+
+    q_va = np.sqrt(np.max((net.trafo.vn_lv_kv * i0)**2 - (net.trafo.pfe_kw)**2, 0.))
+    xm_pu_trafo = q_va / ( i0**2 * z_base_oct)
+
+    b_pu = 1 / (xm_pu_trafo + 1e-8)
+    b_pu = np.where(b_pu > 1e3, 0.0, b_pu)  # limit unreasonable values
+    net.trafo["b_pu"] = b_pu
+    
+    rm_pu_trafo = (net.trafo['pfe_kw']*1000) / ( i0**2 * z_base_oct)
+    net.trafo.loc[:,"g_pu"] = 1 / rm_pu_trafo
 
     ps_s = net.trafo.shift_degree * np.pi/180
     net.trafo.loc[:,"shift_rad"] = ps_s
@@ -429,30 +452,32 @@ def add_branch_parameters(net: pp.pandapowerNet):
     N_tap_s = tap_nom_s * np.exp(1j*ps_s)
 
 
-    for id, row in net.trafo.iterrows(): 
-        a_1t = Ybus_trafo[row.hv_bus, row.hv_bus]
-        a_2t = Ybus_trafo[row.hv_bus, row.lv_bus]
-        a_3t = Ybus_trafo[row.lv_bus, row.hv_bus]
-        a_4t = Ybus_trafo[row.lv_bus, row.lv_bus]
+    return net 
 
-        # series impedance 
-        y_series_trafo = - a_3t * N_tap_s[id] 
+    # for id, row in net.trafo.iterrows(): 
+    #     a_1t = Ybus_trafo[row.hv_bus, row.hv_bus]
+    #     a_2t = Ybus_trafo[row.hv_bus, row.lv_bus]
+    #     a_3t = Ybus_trafo[row.lv_bus, row.hv_bus]
+    #     a_4t = Ybus_trafo[row.lv_bus, row.lv_bus]
 
-        # r, x 
-        z_s_trafo = 1 / y_series_trafo
-        r_trafo, x_trafo = np.real(z_s_trafo), np.imag(z_s_trafo)
+    #     # series impedance 
+    #     y_series_trafo = - a_3t * N_tap_s[id] 
 
-        net.trafo.loc[id, 'r_pu'] = r_trafo
-        net.trafo.loc[id, 'x_pu'] = x_trafo 
+    #     # r, x 
+    #     z_s_trafo = 1 / y_series_trafo
+    #     r_trafo, x_trafo = np.real(z_s_trafo), np.imag(z_s_trafo)
 
-        # shunt impedance 
-        y_sh_trafo = 2* (a_4t - y_series_trafo) 
-        g_trafo, b_trafo = np.real(y_sh_trafo), np.imag(y_sh_trafo)
+    #     net.trafo.loc[id, 'r_pu'] = r_trafo
+    #     net.trafo.loc[id, 'x_pu'] = x_trafo 
 
-        net.trafo.loc[id,'g_pu'] = g_trafo 
-        net.trafo.loc[id,'b_pu'] = b_trafo
+    #     # shunt impedance 
+    #     y_sh_trafo = 2* (a_4t - y_series_trafo) 
+    #     g_trafo, b_trafo = np.real(y_sh_trafo), np.imag(y_sh_trafo)
+
+    #     net.trafo.loc[id,'g_pu'] = g_trafo 
+    #     net.trafo.loc[id,'b_pu'] = b_trafo
     
-    return net
+    # return net
 
 def drop_hv_trafos(net:pp.pandapowerNet):
     """
