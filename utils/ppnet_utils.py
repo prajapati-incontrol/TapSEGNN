@@ -319,7 +319,35 @@ def get_trafo_ids_from_percent(net: pp.pandapowerNet, trafo_id_percent: int):
 
         case 100: 
             return ["all"]
+        
+def calculate_bus_admittance_matrix(net: pp.pandapowerNet): 
+    """
+    Calculates the bus admittance matrix. 
+    """
+    num_bus = len(net.bus)
+    Y_bus = np.zeros((num_bus, num_bus)).astype(complex)
 
+    from_bus = net.line.from_bus 
+    to_bus = net.line.to_bus 
+    line_idx = net.line.index 
+
+    for (idx, fb, tb) in zip(line_idx, from_bus, to_bus): 
+        Y_bus[fb, fb] += complex(net.line.loc[idx, 'a_1'])
+        Y_bus[fb, tb] += complex(net.line.loc[idx, 'a_2'])
+        Y_bus[tb, fb] += complex(net.line.loc[idx, 'a_3'])
+        Y_bus[tb, tb] += complex(net.line.loc[idx, 'a_4'])
+
+    hv_buses = net.trafo.hv_bus 
+    lv_buses = net.trafo.lv_bus 
+    trafo_idx = net.trafo.index 
+
+    for (idx, hv, lv) in zip(trafo_idx, hv_buses, lv_buses):
+        Y_bus[hv, hv] += complex(net.trafo.loc[idx, 'a_1'])
+        Y_bus[hv, lv] += complex(net.trafo.loc[idx, 'a_2'])
+        Y_bus[lv, hv] += complex(net.trafo.loc[idx, 'a_3'])
+        Y_bus[lv, lv] += complex(net.trafo.loc[idx, 'a_4'])
+
+    return Y_bus 
 
 #####################################################################################
 
@@ -388,10 +416,12 @@ def add_branch_parameters(net: pp.pandapowerNet):
     y_sh = g_pu - 1j*b_pu    
 
     # # get Y-bus for lines only 
-    # a_1 = y_series + y_sh/2
-    # a_2 = - y_series
-    # a_3 = - y_series
-    # a_4 = y_series + y_sh/2
+    a_1 = y_series + y_sh/2
+    a_2 = - y_series
+    a_3 = - y_series
+    a_4 = y_series + y_sh/2
+    net.line.loc[:,'a_1'], net.line.loc[:,'a_2'], net.line.loc[:,'a_3'], net.line.loc[:,'a_4'] = a_1, a_2, a_3, a_4
+
 
     # yb_size = len(net.bus)
 
@@ -424,26 +454,31 @@ def add_branch_parameters(net: pp.pandapowerNet):
 
     # series impedance: SCT
     net.trafo.loc[:,"r_pu"] = net.trafo['vkr_percent'] /100  * net.sn_mva / net.trafo['sn_mva']
-    z_pu = net.trafo['vk_percent']/100 * net.sn_mva / net.trafo['sn_mva']
-    net.trafo.loc[:,"x_pu"] = np.sqrt(z_pu**2 - net.trafo['r_pu']**2)
+    z_pu_trafo = net.trafo['vk_percent']/100 * net.sn_mva / net.trafo['sn_mva']
+    net.trafo.loc[:,"x_pu"] = np.sqrt(z_pu_trafo**2 - net.trafo['r_pu']**2)
+
+    y_series_trafo = 1 / (net.trafo['r_pu'] + 1j*net.trafo['x_pu'])
+
 
     # shunt impedance: OCT
     z_base_oct = (net.trafo.vn_lv_kv * 1e3)**2 / (net.trafo.sn_mva * 1e6)
     i_base_oct = net.trafo.sn_mva * 1e6 / (net.trafo.vn_lv_kv*1e3)
     i0 = net.trafo.i0_percent/100 * i_base_oct 
 
-    # calculating power factor angle with error handling 
-    power_factor_angle = np.acos(net.trafo.pfe_kw / (net.trafo.vn_lv_kv * i0))
+    # # calculating power factor angle with error handling 
+    # power_factor_angle = np.acos(net.trafo.pfe_kw / (net.trafo.vn_lv_kv * i0))
 
     q_va = np.sqrt(np.max((net.trafo.vn_lv_kv * i0)**2 - (net.trafo.pfe_kw)**2, 0.))
     xm_pu_trafo = q_va / ( i0**2 * z_base_oct)
 
-    b_pu = 1 / (xm_pu_trafo + 1e-8)
-    b_pu = np.where(b_pu > 1e3, 0.0, b_pu)  # limit unreasonable values
-    net.trafo["b_pu"] = b_pu
+    b_pu_trafo = 1 / (xm_pu_trafo + 1e-8)
+    b_pu_trafo = np.where(b_pu_trafo > 1e3, 0.0, b_pu_trafo)  # limit unreasonable values
+    net.trafo["b_pu"] = b_pu_trafo
     
     rm_pu_trafo = (net.trafo['pfe_kw']*1000) / ( i0**2 * z_base_oct)
     net.trafo.loc[:,"g_pu"] = 1 / rm_pu_trafo
+
+    y_sh_trafo = net.trafo['g_pu'] + 1j*net.trafo['b_pu']
 
     ps_s = net.trafo.shift_degree * np.pi/180
     net.trafo.loc[:,"shift_rad"] = ps_s
@@ -451,6 +486,10 @@ def add_branch_parameters(net: pp.pandapowerNet):
     net.trafo.loc[:,"tap_nom"] = tap_nom_s 
     N_tap_s = tap_nom_s * np.exp(1j*ps_s)
 
+    net.trafo.loc[:,'a_1'] = (y_series_trafo + y_sh_trafo/2) * 1 / (N_tap_s * np.conj(N_tap_s)) 
+    net.trafo.loc[:,'a_2'] = -y_series_trafo * 1 / (np.conj(N_tap_s))
+    net.trafo.loc[:,'a_3'] = -y_series_trafo * 1 / (N_tap_s)
+    net.trafo.loc[:,'a_4'] = y_series_trafo + y_sh_trafo/2
 
     return net 
 
