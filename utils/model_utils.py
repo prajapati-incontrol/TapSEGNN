@@ -12,8 +12,8 @@ from sklearn.preprocessing import StandardScaler
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, parent_dir)
 
-from src.model.graph_model import TAGNRegressor, FCNNRegressor, NERegressor, TapGNN, NRegressor
-from src.model.graph_model import TapNRegressor, EdgeRegressor, EdgeLGRegressor, NEGATRegressor, TapSEGNN
+from src.model.graph_model import TAGNRegressor, FCNNRegressor, NERegressor, NRegressor
+from src.model.graph_model import TapNRegressor, EdgeRegressor, EdgeLGRegressor, NEGATRegressor
 from src.model.graph_model import MultiTapSEGNN, NEGATRegressor, GATRegressor, NGATRegressor, NEGATRegressor_LGL
 from utils.gen_utils import get_trafo_neighbors, get_rmse, get_mae, get_maxae, get_nrmse, precision_round
 from utils.load_data_utils import inverse_scale, retrieve_trafo_minmaxedge
@@ -113,35 +113,6 @@ def initialize_model(model_name: str,
                                 device=device,
                                 )
 
-        case 'TapSEGNN':
-
-            tap_min, tap_max = dataset[0][0].y_trafo_label[1]
-            
-            # since only one trafo edge 
-            trafo_edge = dataset[0][0].y_trafo_label[0]
-            
-            num_tap_classes = len(range(int(tap_min), int(tap_max)+1))
-            num_trafo_neighbors = len(get_trafo_neighbors(edge_index_list, trafo_edge, trafo_hop))
-
-
-            model = TapSEGNN(node_input_features=dataset[0][0].x.shape[1],
-                                list_node_hidden_features=list_node_hidden_features,
-                                node_out_features=node_out_features,
-                                k_hop_node=k_hop_node,
-                                edge_input_features=dataset[0][1].x.shape[1],
-                                list_edge_hidden_features=list_edge_hidden_features,
-                                edge_output_features=edge_out_features,
-                                k_hop_edge=k_hop_edge,
-                                trafo_hop=trafo_hop,
-                                num_trafo_neighbors=num_trafo_neighbors, 
-                                trafo_out_features=num_tap_classes,
-                                gat_out_features=gat_out_features,
-                                gat_head=gat_head,
-                                bias=bias, 
-                                normalize=normalize, 
-                                adj_norm=adj_norm, 
-                                device=device,
-                                )
         case 'NEGATRegressor':
             model = NEGATRegressor(node_input_features=dataset[0][0].x.shape[1],
                                 list_node_hidden_features=list_node_hidden_features,
@@ -223,34 +194,7 @@ def initialize_model(model_name: str,
                                 adj_norm=adj_norm, 
                                 device=device,
                                 )
-        case 'TapGNN': 
-            # get tap_min, tap_max 
-            print(dataset[0][0].y_trafo_label[1])
 
-            tap_min, tap_max = dataset[0][0].y_trafo_label[1]
-            
-            # since only one trafo edge 
-            trafo_edge = dataset[0][0].y_trafo_label[0]
-            
-            num_tap_classes = len(range(int(tap_min), int(tap_max)+1))
-            num_trafo_neighbors = len(get_trafo_neighbors(edge_index_list, trafo_edge, trafo_hop))
-
-            model = TapGNN(node_input_features=dataset[0][0].x.shape[1],
-                                list_node_hidden_features=list_node_hidden_features,
-                                node_out_features=node_out_features,
-                                k_hop_node=k_hop_node,
-                                edge_input_features=dataset[0][1].x.shape[1],
-                                list_edge_hidden_features=list_edge_hidden_features,
-                                edge_output_features=edge_out_features,
-                                k_hop_edge=k_hop_edge,
-                                trafo_hop=trafo_hop,
-                                num_trafo_neighbors=num_trafo_neighbors, 
-                                trafo_out_features=num_tap_classes,
-                                bias=bias, 
-                                normalize=normalize, 
-                                adj_norm=adj_norm, 
-                                device=device,
-                                )
         case 'TAGNRegressor4SE': 
             model = TAGNRegressor(node_in_features = dataset[0][0].x.shape[1], # 4
                                         node_hidden_features = list_node_hidden_features,

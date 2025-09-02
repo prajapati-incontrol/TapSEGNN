@@ -18,6 +18,11 @@ import pylab
 import time 
 import sys 
 
+from scipy.stats import gaussian_kde
+from scipy.special import rel_entr
+from scipy.spatial.distance import jensenshannon
+from matplotlib.lines import Line2D
+
 import logging 
 import yaml
 from datetime import datetime 
@@ -30,6 +35,7 @@ from utils.ppnet_utils import use_stored_pfr, custom_se
 # Get the parent directory
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, parent_dir)
+
 
 def precision_round(number, significant_digits=3):
     power = "{:e}".format(number).split('e')[1]
@@ -481,6 +487,685 @@ def generate_markdown_report(
     print(f"Report generated successfully in {report_dir}")
 
 #####################################################################################
+def generate_markdown_report_GAN(yaml_config: Dict, 
+                                 train_g_losses: List, 
+                                 train_d_losses: List, 
+                                 train_d_accuracies: List, 
+                                 parent_dir: str, 
+                                 test_loader_G: DataLoader, 
+                                 model_G: nn.Module, 
+                                 sampled_input_data_G: Dict, 
+                                 ):
+    """
+    Generate a comprehensive markdown report for GAN training results.
+    
+    Args:
+        config (dict): Configuration dictionary to be saved as YAML
+        train_d_losses (list): Discriminator training losses
+        train_g_losses (list): Generator training losses  
+        traind_d_accuracies (list): Discriminator training accuracies
+        parent_dir (str): Parent directory for saving results
+        additional_metrics (dict, optional): Additional metrics to include
+        model_info (dict, optional): Model architecture information
+    
+    Returns:
+        str: Path to the generated report directory
+    """ 
+
+    current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
+    report_dir = f"{parent_dir}/results/GAN_only/{current_time}"
+    os.makedirs(report_dir, exist_ok=True)
+
+    plt.style.use('seaborn-v0_8-whitegrid')
+    sns.set_palette("husl")
+    fontsize = 20
+    plt.rcParams.update({
+        'font.size': fontsize,
+        'axes.labelsize': fontsize,
+        'axes.titlesize': fontsize,
+        'xtick.labelsize': 20,
+        'ytick.labelsize': 20,
+        'axes.linewidth': 1.2,
+        'grid.alpha': 0.3,
+        'lines.linewidth': 2.5,
+        'lines.markersize': 6,
+    })
+
+    colors = {
+        'discriminator': '#1f77b4',  # Blue
+        'generator': '#ff7f0e',      # Orange
+        'accuracy': '#2ca02c'        # Green
+    }
+    # Generate training dynamics plot
+    fig, ax1 = plt.subplots(figsize=(12, 8), dpi=300)
+    epochs = range(len(train_g_losses))
+    
+    # Primary y-axis (losses)
+    line1 = ax1.plot(epochs, train_d_losses,
+                     color=colors['discriminator'],
+                     linewidth=2.5,
+                     label='Discriminator Loss',
+                     marker='o',
+                     markersize=4,
+                     markevery=max(1, len(epochs)//40),
+                     alpha=0.9)
+    
+    line2 = ax1.plot(epochs, train_g_losses,
+                     color=colors['generator'],
+                     linewidth=2.5,
+                     label='Generator Loss',
+                     marker='s',
+                     markersize=4,
+                     markevery=max(1, len(epochs)//40),
+                     alpha=0.9)
+    
+    # Secondary y-axis (accuracy)
+    ax2 = ax1.twinx()
+    line3 = ax2.plot(epochs, train_d_accuracies,
+                     color=colors['accuracy'],
+                     linewidth=2.5,
+                     label='Discriminator Accuracy',
+                     marker='^',
+                     markersize=4,
+                     markevery=4,
+                     alpha=0.9)
+    
+    # Axis formatting
+    ax1.set_xlabel('Training Epoch', fontweight='bold')
+    ax1.set_ylabel('Loss', fontweight='bold')
+    ax2.set_ylabel('Accuracy', fontweight='bold')
+    ax1.set_xlim(-0.5, len(epochs)-0.5)
+    ax1.set_ylim(0, max(max(train_d_losses), max(train_g_losses)) * 1.1)
+    ax2.set_ylim(0, 1.05)
+    ax1.grid(True, alpha=0.3, linestyle='-', linewidth=0.8)
+    ax2.grid(False)
+    ax2.tick_params(axis='y', labelcolor=colors['accuracy'])
+    ax2.spines['right'].set_color(colors['accuracy'])
+    
+    # Legends
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines1+lines2, labels1+labels2, loc='upper center')
+    
+    plt.tight_layout()
+    plt.subplots_adjust(top=0.92)
+    
+    # Save training dynamics plot
+    plt.savefig(f"{report_dir}/FIG_training_dynamics.pdf",
+                dpi=300, bbox_inches='tight',
+                facecolor='white', edgecolor='none')
+    plt.savefig(f"{report_dir}/FIG_training_dynamics.png",
+                dpi=300, bbox_inches='tight',
+                facecolor='white', edgecolor='none')
+    plt.close()
+
+    # Generate loss difference plot (convergence analysis)
+    fig_cp, ax_cp = plt.subplots(1, 1, figsize=(12, 8), dpi=300)
+    loss_diff = np.array(train_d_losses) - np.array(train_g_losses)
+    
+    ax_cp.plot(epochs, loss_diff, color='purple', linewidth=2, 
+               label='Loss Difference (D - G)')
+    ax_cp.axhline(y=0, color='red', linestyle='--', alpha=0.7, 
+                  label='Nash Equilibrium')
+    ax_cp.fill_between(epochs, loss_diff, alpha=0.3, color='purple')
+    ax_cp.set_xlabel('Training Epoch', fontweight='bold')
+    ax_cp.set_ylabel('Loss Difference', fontweight='bold')
+    ax_cp.legend()
+    ax_cp.grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    plt.savefig(f"{report_dir}/FIG_loss_difference.pdf",
+                dpi=300, bbox_inches='tight',
+                facecolor='white', edgecolor='none')
+    plt.savefig(f"{report_dir}/FIG_loss_difference.png",
+                dpi=300, bbox_inches='tight',
+                facecolor='white', edgecolor='none')
+    plt.close()
+    
+
+    try: 
+        batch_G = next(iter(test_loader_G))
+        scaled_real_pv = batch_G[0].x_pfr
+        scaled_real_p_edge = batch_G[1].x_pfr[:,0]
+        scaled_gen_pv, scaled_gen_p_edge = model_G(batch_G)
+
+        real_pv = inverse_scale(scaled_real_pv, scaler=sampled_input_data_G['scaler_node'])
+        # all_real_p_values = real_pv[:,1].detach().cpu().numpy()
+        # all_real_v_values = real_pv[:,0].detach().cpu().numpy()
+
+        gen_pv = inverse_scale(scaled_gen_pv, scaler=sampled_input_data_G['scaler_node'])
+        # all_generated_p_values = gen_pv[:,1].detach().cpu().numpy()
+        # all_generated_v_values = gen_pv[:,0].detach().cpu().numpy()
+
+        p_edge_mean = sampled_input_data_G['scaler_edge'].mean_[0]
+        p_edge_var = sampled_input_data_G['scaler_edge'].var_[0]
+
+        real_p_edge = scaled_real_p_edge * p_edge_var + p_edge_mean
+        # all_real_pedge_values = real_p_edge.detach().cpu().numpy()
+        
+        gen_p_edge = scaled_gen_p_edge * p_edge_var + p_edge_mean
+        # all_generated_pedge_values = gen_p_edge.detach().cpu().numpy()
+
+        # Convert tensors to numpy for plotting
+        real_v_np = real_pv[:,0].detach().cpu().numpy()
+        real_p_np = real_pv[:,1].detach().cpu().numpy()
+        generated_v_np = gen_pv[:,0].detach().cpu().numpy()
+        generated_p_np = gen_pv[:,1].detach().cpu().numpy()
+        real_p_edge_np = real_p_edge.detach().cpu().numpy()
+        gen_p_edge_np = gen_p_edge.detach().cpu().numpy()
+
+        # Create labeled DataFrames with better naming
+        real_df = pd.DataFrame({
+            'Power': real_p_np,
+            'Voltage': real_v_np,
+            'Type': 'Real Data'
+        })
+
+        gen_df = pd.DataFrame({
+            'Power': generated_p_np,
+            'Voltage': generated_v_np,
+            'Type': 'Generated Data'
+        })
+
+        # Combine datasets
+        combined_data = pd.concat([real_df, gen_df], ignore_index=True)
+
+        # Set up the plot with enhanced styling
+        plt.style.use('default')  # Keep default matplotlib style
+        sns.set_palette(["#2E86AB", "#A23B72"])  # Professional blue and magenta
+
+        # Create the enhanced jointplot
+        g = sns.jointplot(
+            data=combined_data,
+            x='Power',
+            y='Voltage',
+            hue='Type',
+            kind='kde',
+            fill=True,
+            alpha=0.6,
+            height=10,
+            ratio=5,
+            space=0.1,
+            fontsize=fontsize,
+            marginal_kws={'alpha': 0.7, 'linewidth': 2},
+            joint_kws={'alpha': 0.6, 'linewidths': 1.5},
+            legend=True,  
+        )
+
+        # # Enhance the main plot
+        g.ax_joint.grid(True, alpha=0.3, linestyle='-', linewidth=0.8)
+
+
+        # Enhance marginal plots
+        g.ax_marg_x.grid(True, alpha=0.3)
+        g.ax_marg_y.grid(True, alpha=0.3)
+
+        # Add statistical annotations
+        real_power_mean = real_p_np.mean()
+        real_voltage_mean = real_v_np.mean()
+        gen_power_mean = generated_p_np.mean()
+        gen_voltage_mean = generated_v_np.mean()
+
+        # Add mean markers
+        g.ax_joint.scatter(real_power_mean, real_voltage_mean, 
+                        marker='x', s=200, color='#2E86AB', 
+                        linewidth=3, label='Real Mean', zorder=5)
+        g.ax_joint.scatter(gen_power_mean, gen_voltage_mean, 
+                        marker='x', s=200, color='#A23B72', 
+                        linewidth=3, label='Generated Mean', zorder=5)
+        
+        # Calculate and display statistical metrics
+        def calculate_metrics(real_data, gen_data):
+            """Calculate JS and KL divergence for Power and Voltage columns."""
+            
+            def compute_divergences(real_series, gen_series):
+                # Combine data for common evaluation range
+                data = np.concatenate([real_series, gen_series])
+                x = np.linspace(data.min(), data.max(), 1000)
+                
+                # KDE estimation
+                real_kde = gaussian_kde(real_series)
+                gen_kde = gaussian_kde(gen_series)
+
+                # Evaluate densities
+                real_prob = real_kde(x)
+                gen_prob = gen_kde(x)
+
+                # Add epsilon to avoid zeros
+                epsilon = 1e-10
+                real_prob += epsilon
+                gen_prob += epsilon
+
+                # Re-normalize after epsilon adjustment
+                real_prob /= np.sum(real_prob)
+                gen_prob /= np.sum(gen_prob)
+
+                # Compute divergences
+                kl = np.sum(rel_entr(real_prob, gen_prob))  # KL(real || gen)
+                js = jensenshannon(real_prob, gen_prob, base=2) ** 2  # Square to get divergence
+
+                return js, kl
+
+            # Compute metrics for both Power and Voltage
+            js_div_power, kl_div_power = compute_divergences(real_data['Power'], gen_data['Power'])
+            js_div_voltage, kl_div_voltage = compute_divergences(real_data['Voltage'], gen_data['Voltage'])
+
+            return js_div_power, js_div_voltage, kl_div_power, kl_div_voltage
+
+        js_div_power, js_div_voltage, kl_div_power, kl_div_voltage = calculate_metrics(real_df, gen_df)
+
+        # Add text box with statistical information
+        stats_text = f"""JS Divergence:
+        Power: {js_div_power:.4f}
+        Voltage: {js_div_voltage:.4f}
+
+        KL Divergence:
+        Power: {kl_div_power:.4f}
+        Voltage: {kl_div_voltage:.4f}
+
+        Sample Size:
+        Real: {len(real_df)}
+        Generated: {len(gen_df)}"""
+
+        g.ax_joint.text(0.02, 0.98, stats_text,
+                    transform=g.ax_joint.transAxes,
+                    fontsize=16,
+                    verticalalignment='top',
+                    bbox=dict(boxstyle='round,pad=0.5', 
+                                facecolor='white', 
+                                alpha=0.8,
+                                edgecolor='gray'))
+
+        # Get existing legend handles and labels from the seaborn plot
+        handles, labels = g.ax_joint.get_legend_handles_labels()
+
+        mean_handles = [
+            Line2D([0], [0], marker='o', color='#2E86AB', linewidth=0, markersize=10, markeredgewidth=3),
+            Line2D([0], [0], marker='o', color='#A23B72', linewidth=0, markersize=10, markeredgewidth=3)
+        ]
+
+        # Combine all handles and labels
+        all_handles = handles + mean_handles
+        all_labels = labels + ['Real Distribution', 'Generated Distribution']
+
+        # Create the complete legend
+        g.ax_joint.legend(handles=all_handles, 
+                        labels=all_labels,
+                        loc='lower left', 
+                        fontsize=16)
+
+        # Enhance legend with increased font size
+        # g.ax_joint.legend(loc='lower right', 
+        #                  fontsize=14,  # Use your fontsize variable
+        #                 #  frameon=True, 
+        #                 #  fancybox=True, 
+        #                 #  shadow=True,
+        #                 #  framealpha=0.9
+        #                  )
+
+        g.ax_joint.set_xlabel("$P$",fontsize=fontsize)
+        g.ax_joint.set_ylabel("$|V\u0332|$",fontsize=fontsize)
+        g.ax_joint.tick_params(axis='x', labelsize=fontsize)
+        g.ax_joint.tick_params(axis='y', labelsize=fontsize)
+
+        # Improve layout
+        plt.tight_layout()
+
+        # Save in multiple formats
+        plt.savefig(report_dir + f'/FIG_GAN_power_voltage_kde_comparison.pdf', dpi=300, bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+        plt.savefig(report_dir + f'/FIG_ch_results_GAN_power_voltage_kde_comparison.png', dpi=300, bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+        
+        # Calculate and display statistical metrics
+        def calculate_metrics(real_data, gen_data):
+            """Calculate JS and KL divergence for Power and Voltage columns."""
+            def compute_divergences(real_series, gen_series):
+                # Combine data for common evaluation range
+                data = np.concatenate([real_series, gen_series])
+                x = np.linspace(data.min(), data.max(), 1000)
+                
+                # KDE estimation
+                real_kde = gaussian_kde(real_series)
+                gen_kde = gaussian_kde(gen_series)
+                
+                # Evaluate densities
+                real_prob = real_kde(x)
+                gen_prob = gen_kde(x)
+                
+                # Add epsilon to avoid zeros
+                epsilon = 1e-10
+                real_prob += epsilon
+                gen_prob += epsilon
+                
+                # Re-normalize after epsilon adjustment
+                real_prob /= np.sum(real_prob)
+                gen_prob /= np.sum(gen_prob)
+                
+                # Compute divergences
+                kl = np.sum(rel_entr(real_prob, gen_prob))  # KL(real || gen)
+                js = jensenshannon(real_prob, gen_prob, base=2) ** 2  # Square to get divergence
+                
+                return js, kl
+            
+            # For edge power, we need to handle single series
+            if isinstance(real_data, (pd.Series, np.ndarray)) and isinstance(gen_data, (pd.Series, np.ndarray)):
+                js_div, kl_div = compute_divergences(real_data, gen_data)
+                return js_div, kl_div
+            else:
+                # Compute metrics for both Power and Voltage
+                js_div_power, kl_div_power = compute_divergences(real_data['Power'], gen_data['Power'])
+                js_div_voltage, kl_div_voltage = compute_divergences(real_data['Voltage'], gen_data['Voltage'])
+                return js_div_power, js_div_voltage, kl_div_power, kl_div_voltage
+
+        # Create a DataFrame for plotting
+        df_edge = pd.DataFrame({
+            'Value': np.concatenate([real_p_edge_np, gen_p_edge_np]),
+            'Type': ['Real Data'] * len(real_p_edge_np) + ['Generated Data'] * len(gen_p_edge_np)
+        })
+
+        # Calculate divergence metrics
+        js_divergence, kl_divergence = calculate_metrics(real_p_edge_np, gen_p_edge_np)
+
+        # Set up enhanced plotting style
+        plt.style.use('default')
+        fig, ax = plt.subplots(figsize=(12, 8), dpi=300)
+
+        # Enhanced color palette
+        colors = ['#2E86AB', '#A23B72']  # Professional blue and magenta
+        sns.set_palette(colors)
+
+        # Create the enhanced KDE plot
+        kde_plot = sns.kdeplot(
+            data=df_edge,
+            x='Value',
+            hue='Type',
+            fill=True,
+            common_norm=False,
+            alpha=0.6,
+            linewidth=2.5,
+            ax=ax,
+            # legend=True,
+        )
+
+        # kde_plot.legend()
+
+        # Add unfilled KDE lines for better definition
+        sns.kdeplot(
+            data=df_edge,
+            x='Value',
+            hue='Type',
+            fill=True,
+            common_norm=False,
+            linewidth=3,
+            ax=ax,
+            # legend=True,
+        )
+
+        # Enhanced axis labels and title
+        ax.set_xlabel('$P^+$', fontsize=fontsize)
+        ax.set_ylabel('KDE Density', fontsize=fontsize)
+        ax.tick_params(axis='x', labelsize=fontsize)
+        ax.tick_params(axis='y', labelsize=fontsize)
+
+        # ax.set_title('Distribution Comparison: Real vs Generated Edge Power',fontsize=fontsize, pad=20)
+
+        # Add grid
+        ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.8)
+
+        # Create comprehensive statistics text box
+        stats_text = f"""Divergence Measures:
+        JS Divergence: {js_divergence:.6f}
+        KL Divergence: {kl_divergence:.6f}
+        
+        Sample Sizes:
+        Real: {len(real_p_edge_np)}, Generated: {len(gen_p_edge_np)}"""
+
+        # Add statistics text box
+        ax.text(0.58, 0.98, stats_text,
+                transform=ax.transAxes,
+                fontsize=fontsize,
+                verticalalignment='top',
+                bbox=dict(boxstyle='round,pad=0.8', 
+                        facecolor='white', 
+                        alpha=0.9,
+                        edgecolor='gray',
+                        linewidth=1))
+        
+        mean_handles = [
+            Line2D([0], [0], marker='o', color='#2E86AB', linewidth=0, markersize=10, markeredgewidth=3),
+            Line2D([0], [0], marker='o', color='#A23B72', linewidth=0, markersize=10, markeredgewidth=3)
+        ]
+
+        # Combine all handles and labels
+        all_handles = mean_handles
+        all_labels = ['Real Distribution', 'Generated Distribution']
+
+        # Create the complete legend
+        ax.legend(handles=all_handles, 
+                        labels=all_labels,
+                        loc='center right', 
+                        fontsize=fontsize)
+
+        # Enhance the plot area
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_linewidth(1.2)
+        ax.spines['bottom'].set_linewidth(1.2)
+
+        # Adjust layout
+        plt.tight_layout()
+
+        # Save in multiple formats
+        plt.savefig(report_dir + f'/FIG_GAN_edge_power_kde_enhanced.pdf', dpi=300, bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+        plt.savefig(report_dir + f'/FIG_GAN_edge_power_kde_enhanced.png', dpi=300, bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+    except Exception as e: 
+        print(f"Report generation failed: {e}")
+
+
+    # Generate markdown report
+    with open(f"{report_dir}/training_report.md", 'w') as f:
+        f.write("# 📝 GAN Training Report\n\n")
+        f.write(f"**Generated on:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+        
+        # Configuration section
+        f.write("## ⚙️ Configuration\n\n")
+        yaml_config = yaml.dump(yaml_config, default_flow_style=False)
+        f.write("```yaml\n")
+        f.write(yaml_config)
+        f.write("```\n\n")
+        
+        # Training Summary
+        f.write("## 📊 Training Summary\n\n")
+        f.write(f"- **Total Epochs:** {len(train_g_losses)}\n")
+        f.write(f"- **Final Generator Loss:** {train_g_losses[-1]:.4f}\n")
+        f.write(f"- **Final Discriminator Loss:** {train_d_losses[-1]:.4f}\n")
+        f.write(f"- **Final Discriminator Accuracy:** {train_d_accuracies[-1]:.4f}\n")
+        f.write(f"- **Loss Difference (D-G):** {train_d_losses[-1] - train_g_losses[-1]:.4f}\n\n")
+        
+        
+        # Training Dynamics
+        f.write("## 📈 Training Dynamics\n\n")
+        f.write("The following plot shows the evolution of generator and discriminator losses ")
+        f.write("along with discriminator accuracy throughout training:\n\n")
+        f.write("![Training Dynamics](FIG_training_dynamics.png)\n\n")
+        
+        # Convergence Analysis
+        f.write("## 🎯 Convergence Analysis\n\n")
+        f.write("The loss difference plot shows how close the GAN is to Nash equilibrium ")
+        f.write("(where discriminator and generator losses are balanced):\n\n")
+        f.write("![Loss Difference](FIG_loss_difference.png)\n\n")
+        
+        # Statistical Analysis
+        f.write("## 📋 Statistical Analysis\n\n")
+        f.write("### Loss Statistics\n\n")
+        f.write("| Metric | Generator | Discriminator |\n")
+        f.write("|--------|-----------|---------------|\n")
+        f.write(f"| Mean | {np.mean(train_g_losses):.4f} | {np.mean(train_d_losses):.4f} |\n")
+        f.write(f"| Std | {np.std(train_g_losses):.4f} | {np.std(train_d_losses):.4f} |\n")
+        f.write(f"| Min | {np.min(train_g_losses):.4f} | {np.min(train_d_losses):.4f} |\n")
+        f.write(f"| Max | {np.max(train_g_losses):.4f} | {np.max(train_d_losses):.4f} |\n\n")
+        
+        f.write("### Discriminator Accuracy Statistics\n\n")
+        f.write(f"- **Mean Accuracy:** {np.mean(train_d_accuracies):.4f}\n")
+        f.write(f"- **Standard Deviation:** {np.std(train_d_accuracies):.4f}\n")
+        f.write(f"- **Min Accuracy:** {np.min(train_d_accuracies):.4f}\n")
+        f.write(f"- **Max Accuracy:** {np.max(train_d_accuracies):.4f}\n\n")
+        
+        # Training Insights
+        f.write("## 💡 Training Insights\n\n")
+        
+        # Convergence assessment
+        final_loss_diff = abs(train_d_losses[-1] - train_g_losses[-1])
+        if final_loss_diff < 0.1:
+            f.write("✅ **Good Convergence**: The generator and discriminator losses are well balanced.\n\n")
+        elif final_loss_diff < 0.5:
+            f.write("⚠️ **Moderate Convergence**: Some imbalance between generator and discriminator.\n\n")
+        else:
+            f.write("❌ **Poor Convergence**: Significant imbalance between generator and discriminator losses.\n\n")
+        
+        # Discriminator accuracy assessment
+        mean_acc = np.mean(train_d_accuracies)
+        if 0.4 <= mean_acc <= 0.6:
+            f.write("✅ **Optimal Discriminator Performance**: Accuracy around 50% indicates good balance.\n\n")
+        elif mean_acc > 0.8:
+            f.write("⚠️ **Discriminator Too Strong**: High accuracy may indicate generator struggling.\n\n")
+        elif mean_acc < 0.3:
+            f.write("⚠️ **Discriminator Too Weak**: Low accuracy may indicate poor discriminator training.\n\n")
+        
+        # Loss stability assessment
+        g_loss_std = np.std(train_g_losses[-10:])  # Last 10 epochs
+        d_loss_std = np.std(train_d_losses[-10:])
+        if g_loss_std < 0.1 and d_loss_std < 0.1:
+            f.write("✅ **Stable Training**: Low variance in recent losses indicates stability.\n\n")
+        else:
+            f.write("⚠️ **Training Instability**: High variance in recent losses detected.\n\n")
+        
+        try: 
+            # Model Performance Metrics
+            f.write("## 🎯 Model Performance Metrics\n\n")
+            f.write("### Power-Voltage Distribution Analysis\n\n")
+            f.write(f"- **JS Divergence (Power):** {js_div_power:.6f}\n")
+            f.write(f"- **JS Divergence (Voltage):** {js_div_voltage:.6f}\n")
+            f.write(f"- **KL Divergence (Power):** {kl_div_power:.6f}\n")
+            f.write(f"- **KL Divergence (Voltage):** {kl_div_voltage:.6f}\n\n")
+            
+            f.write("### Edge Power Distribution Analysis\n\n")
+            f.write(f"- **JS Divergence:** {js_divergence:.6f}\n")
+            f.write(f"- **KL Divergence:** {kl_divergence:.6f}\n\n")
+            
+            # Statistical Summary
+            f.write("## 📈 Statistical Summary\n\n")
+            f.write("### Node Features (Power & Voltage)\n\n")
+            f.write("| Metric | Real Data | Generated Data | Difference |\n")
+            f.write("|--------|-----------|----------------|------------|\n")
+            f.write(f"| Power Mean | {real_power_mean:.4f} | {gen_power_mean:.4f} | {abs(real_power_mean - gen_power_mean):.4f} |\n")
+            f.write(f"| Voltage Mean | {real_voltage_mean:.4f} | {gen_voltage_mean:.4f} | {abs(real_voltage_mean - gen_voltage_mean):.4f} |\n")
+            f.write(f"| Power Std | {real_p_np.std():.4f} | {generated_p_np.std():.4f} | {abs(real_p_np.std() - generated_p_np.std()):.4f} |\n")
+            f.write(f"| Voltage Std | {real_v_np.std():.4f} | {generated_v_np.std():.4f} | {abs(real_v_np.std() - generated_v_np.std()):.4f} |\n\n")
+            
+            f.write("### Edge Features (Power Flow)\n\n")
+            f.write("| Metric | Real Data | Generated Data | Difference |\n")
+            f.write("|--------|-----------|----------------|------------|\n")
+            f.write(f"| Edge Power Mean | {real_p_edge_np.mean():.4f} | {gen_p_edge_np.mean():.4f} | {abs(real_p_edge_np.mean() - gen_p_edge_np.mean()):.4f} |\n")
+            f.write(f"| Edge Power Std | {real_p_edge_np.std():.4f} | {gen_p_edge_np.std():.4f} | {abs(real_p_edge_np.std() - gen_p_edge_np.std()):.4f} |\n\n")
+            
+            # Data Quality Assessment
+            f.write("## 🔍 Data Quality Assessment\n\n")
+            f.write("### Sample Sizes\n\n")
+            f.write(f"- **Real Data Points:** {len(real_df)}\n")
+            f.write(f"- **Generated Data Points:** {len(gen_df)}\n")
+            f.write(f"- **Edge Data Points (Real):** {len(real_p_edge_np)}\n")
+            f.write(f"- **Edge Data Points (Generated):** {len(gen_p_edge_np)}\n\n")
+            
+            # Performance Interpretation
+            f.write("## 📋 Performance Interpretation\n\n")
+            
+            # JS Divergence interpretation
+            avg_js_node = (js_div_power + js_div_voltage) / 2
+            f.write("### Jensen-Shannon Divergence Analysis\n\n")
+            if avg_js_node < 0.1:
+                f.write("✅ **Excellent Performance**: JS divergence values indicate very close distribution matching.\n\n")
+            elif avg_js_node < 0.3:
+                f.write("✅ **Good Performance**: JS divergence values show reasonable distribution similarity.\n\n")
+            elif avg_js_node < 0.5:
+                f.write("⚠️ **Moderate Performance**: JS divergence values suggest some distribution differences.\n\n")
+            else:
+                f.write("❌ **Poor Performance**: High JS divergence values indicate significant distribution mismatch.\n\n")
+            
+            f.write("### Key Findings\n\n")
+            power_diff_pct = abs(real_power_mean - gen_power_mean) / abs(real_power_mean) * 100
+            voltage_diff_pct = abs(real_voltage_mean - gen_voltage_mean) / abs(real_voltage_mean) * 100
+            edge_diff_pct = abs(real_p_edge_np.mean() - gen_p_edge_np.mean()) / abs(real_p_edge_np.mean()) * 100
+            
+            f.write(f"- **Power Mean Deviation:** {power_diff_pct:.2f}%\n")
+            f.write(f"- **Voltage Mean Deviation:** {voltage_diff_pct:.2f}%\n")
+            f.write(f"- **Edge Power Mean Deviation:** {edge_diff_pct:.2f}%\n\n")
+            
+            # Generated Visualizations
+            f.write("## 📊 Generated Visualizations\n\n")
+            f.write("The following visualizations have been generated and saved:\n\n")
+            f.write("1. **Power-Voltage KDE Comparison**\n")
+            f.write("   - File: `FIG_GAN_power_voltage_kde_comparison.pdf`\n")
+            f.write("   - File: `FIG_ch_results_GAN_power_voltage_kde_comparison.png`\n")
+            f.write("   - Shows joint distribution comparison of power and voltage values\n\n")
+            
+            f.write("2. **Edge Power KDE Distribution**\n")
+            f.write("   - File: `FIG_GAN_edge_power_kde_enhanced.pdf`\n")
+            f.write("   - File: `FIG_GAN_edge_power_kde_enhanced.png`\n")
+            f.write("   - Shows distribution comparison of edge power flows\n\n")
+            
+            # Technical Details
+            f.write("## 🔧 Technical Details\n\n")
+            f.write("### Model Architecture\n\n")
+            f.write("- **Model Type:** Graph Generative Adversarial Network (GAN)\n")
+            f.write("- **Node Features:** Power (P) and Voltage Magnitude (|V|)\n")
+            f.write("- **Edge Features:** Power Flow (P+)\n")
+            f.write("- **Scaling:** StandardScaler applied to both node and edge features\n\n")
+            
+            f.write("### Evaluation Metrics\n\n")
+            f.write("- **Jensen-Shannon Divergence:** Measures similarity between probability distributions (0 = identical, 1 = completely different)\n")
+            f.write("- **Kullback-Leibler Divergence:** Measures information loss when approximating one distribution with another\n")
+            f.write("- **Kernel Density Estimation:** Used for probability density estimation from samples\n\n")
+            
+            # Recommendations
+            f.write("## 💡 Recommendations\n\n")
+            
+            if avg_js_node < 0.2:
+                f.write("### Model Status: Ready for Deployment\n\n")
+                f.write("- The model shows excellent performance with low divergence metrics\n")
+                f.write("- Generated distributions closely match real data patterns\n")
+                f.write("- Consider validation on additional test cases\n\n")
+            elif avg_js_node < 0.4:
+                f.write("### Model Status: Good Performance, Minor Improvements Possible\n\n")
+                f.write("- The model performs well but could benefit from:\n")
+                f.write("  - Extended training with more epochs\n")
+                f.write("  - Hyperparameter tuning\n")
+                f.write("  - Data augmentation techniques\n\n")
+            else:
+                f.write("### Model Status: Requires Improvement\n\n")
+                f.write("- Consider the following improvements:\n")
+                f.write("  - Review network architecture\n")
+                f.write("  - Adjust learning rates\n")
+                f.write("  - Increase training data diversity\n")
+                f.write("  - Implement advanced GAN techniques (e.g., progressive growing, spectral normalization)\n\n")
+            
+            # Footer
+            f.write("---\n\n")
+            f.write("*This report was automatically generated from GAN training results. ")
+            f.write("All metrics and visualizations are based on the latest model checkpoint.*\n")
+            print(f"📄 Training report saved to: {report_dir}/training_report.md")
+        except Exception as e:
+            print(f"Report generation failed: {e}")
+
+
+    # return report_dir
+
+
+#####################################################################################
+
 
 def scale_numeric_columns(input_tensor: torch.Tensor, 
                           categorical_cols: int = None):

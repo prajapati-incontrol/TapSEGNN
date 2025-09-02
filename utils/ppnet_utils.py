@@ -25,24 +25,28 @@ sys.path.insert(0, parent_dir)
 ##########################################################################################################
 
 def initialize_network(net_name: str,
-                       else_load: float = 0.0001,  
+                       load_std: float = 0.0001,  
                        verbose: bool = True) -> pp.pandapowerNet: 
     
-    # else_load = 1.0
     match net_name: 
         case 'net_A':
             net = get_net_A()
-            net.load.loc[:, 'p_std'] = else_load
+            net.load.loc[:, 'p_std'] = load_std
             net.trafo.shift_degree = 0.0
 
         case 'net_B': 
             net = get_net_B() 
-            net.load.loc[:, 'p_std'] = else_load 
+            net.load.loc[:, 'p_std'] = load_std 
             net.trafo.shift_degree = 0.0  
+        
+        case 'net_4bus': 
+            net = get_net_4bus()
+            net.load.loc[:, 'p_std'] = load_std 
+            net.trafo.shift_degree = 0.0
 
         case 'PP_MV_RING':
             net = pp.networks.simple_pandapower_test_networks.simple_mv_open_ring_net()
-            net.load.loc[:, 'p_std'] = else_load
+            net.load.loc[:, 'p_std'] = load_std
             net.trafo.shift_degree = 0.0 # bug in pandapower, initialized trafo shift degree is 150 degrees.
             if verbose: 
                 nonhv_trafo_ids = ~net.trafo.loc[:,"name"].str.contains("HV", na=False)
@@ -55,7 +59,7 @@ def initialize_network(net_name: str,
         case 'TOY':
             # load toy network
             net = pp.from_pickle(parent_dir + '/data/net_TOY.p')
-            net.load.loc[:, 'p_std'] = else_load
+            net.load.loc[:, 'p_std'] = load_std
             net.trafo.shift_degree = 0.0
             net.name = net_name 
             if verbose: 
@@ -68,7 +72,7 @@ def initialize_network(net_name: str,
             
         case 'MVO':
             net = pp.networks.mv_oberrhein(include_substations=True)
-            net.load.loc[:, 'p_std'] = else_load
+            net.load.loc[:, 'p_std'] = load_std
             net.trafo.loc[net.trafo.loc[:,'tap_step_percent'].isna(),'tap_step_percent'] = 2.173913
             net.name = net_name
             if verbose: 
@@ -87,6 +91,33 @@ def initialize_network(net_name: str,
     print(f"Net {net_name} has {len(netG.nodes())} nodes and {len(netG.edges())} edges. \n")
 
     return net 
+
+#####################################################################################
+def get_net_4bus(): 
+
+    # create empty network 
+    net = pp.create_empty_network()
+
+    # create buses 
+    b1 = pp.create_bus(net, vn_kv=20., name="Bus 1")
+    b2 = pp.create_bus(net, vn_kv=20., name="Bus 2")
+    b3 = pp.create_bus(net, vn_kv=20., name="Bus 3")
+    b4 = pp.create_bus(net, vn_kv=0.4, name="Bus 4")
+
+    # create bus elements
+    pp.create_ext_grid(net, bus=b1, vm_pu=1.02, name="Grid Connection")
+    pp.create_load(net, bus=b2, p_mw=0.1, q_mvar=0.05, name="Load 1")
+    pp.create_load(net, bus=b3, p_mw=0.9, q_mvar=0., name="Load 2")
+    pp.create_sgen(net, bus=b4, p_mw=0.22, name="Gen 1")
+
+    # create branch elements
+    pp.create_transformer(net, hv_bus=b3, lv_bus=b4, std_type="0.4 MVA 20/0.4 kV", name="Trafo")
+
+    pp.create_line(net, from_bus=b1, to_bus=b2, length_km=1.0, name="Line",std_type="NA2XS2Y 1x150 RM/25 12/20 kV")
+    pp.create_line(net, from_bus=b2, to_bus=b3, length_km=1.0, name="Line",std_type='NA2XS2Y 1x120 RM/25 12/20 kV')
+    pp.create_line(net, from_bus=b1, to_bus=b3, length_km=1.0, name="Line",std_type="NA2XS2Y 1x70 RM/25 12/20 kV")
+
+    return net
 
 #####################################################################################
 def get_net_A(): 

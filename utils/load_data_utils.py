@@ -32,7 +32,7 @@ def load_sampled_input_data(sc_type: int,
                             num_samples: int,
                             p_std: float = 1e-2,
                             noise: float = 0.0,
-                            trafo_ids: List = [4],
+                            trafo_ids: List = ["all"],
                             std_meas: float = 0.0, 
                             std_pseudo: float = 0.0, 
                             scaler: bool = True,
@@ -311,8 +311,8 @@ def load_sampled_input_data(sc_type: int,
                 nnz_node_mask = torch.count_nonzero(node_mask[0,:,:])
                 nnz_edge_mask = torch.count_nonzero(edge_mask[0,:,:])
 
-                print(f"Number of V, P measurements {nnz_node_mask} out of {node_mask[0,:,:].numel()}\n")
-                print(f"Number of P_to, Q_to, P_from, Q_from measurements {nnz_edge_mask} out of {edge_mask[0,:,:].numel()}\n")
+                # print(f"Number of V, P measurements {nnz_node_mask} out of {node_mask[0,:,:].numel()}\n")
+                # print(f"Number of P_to, Q_to, P_from, Q_from measurements {nnz_edge_mask} out of {edge_mask[0,:,:].numel()}\n")
 
                 return sampled_input_data
         
@@ -461,10 +461,10 @@ def load_sampled_input_data(sc_type: int,
                 sampled_input_data['edge_index_dir'] = edge_index_dir
 
                 nnz_node_mask = torch.count_nonzero(node_mask[0,:,:])
-                nnz_edge_mask = torch.count_nonzero(edge_mask[0,:,:])
+                nnz_edge_mask = torch.count_nonzero(edge_mask[0,0,:])
 
                 print(f"Number of V, P measurements {nnz_node_mask} out of {node_mask[0,:,:].numel()}\n")
-                print(f"Number of P_to, Q_to, P_from, Q_from measurements {nnz_edge_mask} out of {edge_mask[0,:,:].numel()}\n")
+                print(f"Number of P_to, Q_to, P_from, Q_from measurements {nnz_edge_mask} out of {edge_mask[0,0,:].numel()}\n")
 
                 return sampled_input_data
                 
@@ -479,7 +479,7 @@ def load_sc_9(net: pp.pandapowerNet,
               trafo_ids: List,
               noise: bool = True) -> Tuple: 
     """
-    This data is considering the real measurement infrastructure for Delft Technopolis only. 
+    This data is considering the real measurement infrastructure for net_A only. 
     """
     # if (len(trafo_ids) == 1) & (trafo_ids[0] != "all"): 
     #     raise ValueError("Total Transformer IDs should be more than 1, otherwise use scenario 1/2/3.")
