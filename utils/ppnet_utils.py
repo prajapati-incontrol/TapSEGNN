@@ -22,6 +22,21 @@ import time
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, parent_dir)
 
+
+##########################################################################################################
+
+def check_pf_consistency(net_name: str,
+                        gen_v: np.ndarray, 
+                        gen_p: np.ndarray, 
+                        gen_p_edge: np.ndarray):
+    
+    net = initialize_network(net_name=net_name)
+    
+    return 
+
+
+
+
 ##########################################################################################################
 
 def initialize_network(net_name: str,

@@ -5,7 +5,7 @@ device: cpu
 
 # dataset 
 data: 
-  net_name: net_A
+  net_name: MVO
   gen_scenario_type: 9
   dis_scenario_type: 8
   num_samples: 4096
@@ -32,7 +32,7 @@ model_G:
 
 # generator training config 
 training_G: 
-  lr: 0.01
+  lr: 0.0001
   weight_decay: 0.00
   schedular_min_lr: 0.00001
 
@@ -43,14 +43,14 @@ model_D:
 
 # discriminator training config 
 training_D: 
-  lr: 0.01
+  lr: 0.000001
   weight_decay: 0.00
   schedular_min_lr: 0.00001
 
 # training min-max gan 
 training_GAN: 
-  num_epoch: 50
-  disc_iter: 2
+  num_epoch: 30
+  disc_iter: 1
   gen_iter: 1
   feature_matching: True
   early_stopping: False
