@@ -1,6 +1,6 @@
 # 📝 GAN Training Report
 
-**Generated on:** 2025-09-02 20:17:39
+**Generated on:** 2025-09-12 08:53:12
 
 ## ⚙️ Configuration
 
@@ -9,9 +9,9 @@ data:
   dis_scenario_type: 8
   gen_scenario_type: 9
   load_std: 0.1
-  net_name: net_4bus
+  net_name: net_A
   noise: true
-  num_samples: 256
+  num_samples: 4096
 description: 'Configuration for GAN experiment in /notebooks/rq_4_gans.ipynb
 
   '
@@ -38,26 +38,26 @@ model_G:
 training_D:
   lr: 1.0e-05
   schedular_min_lr: 1.0e-05
-  weight_decay: 1.0e-05
+  weight_decay: 0.0
 training_G:
   lr: 0.01
   schedular_min_lr: 0.0001
   weight_decay: 0.0
 training_GAN:
-  disc_iter: 2
+  disc_iter: 1
   early_stopping: false
-  gen_iter: 1
-  num_epoch: 100
+  gen_iter: 5
+  num_epoch: 50
   val_patience: 5
 ```
 
 ## 📊 Training Summary
 
-- **Total Epochs:** 100
-- **Final Generator Loss:** 4.3214
-- **Final Discriminator Loss:** 8.0331
-- **Final Discriminator Accuracy:** 0.4681
-- **Loss Difference (D-G):** 3.7117
+- **Total Epochs:** 50
+- **Final Generator Loss:** 11.3179
+- **Final Discriminator Loss:** 0.3666
+- **Final Discriminator Accuracy:** 0.7390
+- **Loss Difference (D-G):** -10.9513
 
 ## 📈 Training Dynamics
 
@@ -77,23 +77,21 @@ The loss difference plot shows how close the GAN is to Nash equilibrium (where d
 
 | Metric | Generator | Discriminator |
 |--------|-----------|---------------|
-| Mean | 2.4080 | 172.8184 |
-| Std | 2.1217 | 338.8528 |
-| Min | 0.0000 | 2.7856 |
-| Max | 9.6424 | 2662.4357 |
+| Mean | 17.3225 | 40.0515 |
+| Std | 44.8313 | 164.7476 |
+| Min | 0.0000 | 0.3457 |
+| Max | 278.2236 | 1023.2939 |
 
 ### Discriminator Accuracy Statistics
 
-- **Mean Accuracy:** 0.4384
-- **Standard Deviation:** 0.1307
-- **Min Accuracy:** 0.2892
-- **Max Accuracy:** 0.6458
+- **Mean Accuracy:** 0.6007
+- **Standard Deviation:** 0.2061
+- **Min Accuracy:** 0.0000
+- **Max Accuracy:** 0.7415
 
 ## 💡 Training Insights
 
 ❌ **Poor Convergence**: Significant imbalance between generator and discriminator losses.
-
-✅ **Optimal Discriminator Performance**: Accuracy around 50% indicates good balance.
 
 ⚠️ **Training Instability**: High variance in recent losses detected.
 

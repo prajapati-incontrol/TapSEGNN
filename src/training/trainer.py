@@ -425,7 +425,7 @@ def eval_epoch_se(model: nn.Module,
     
     return val_loss_ref / len(loader)
 
-######################## TRAIN AND EVAL EPOCH FOR GAN #######################################
+######################## TRAIN AND EVAL EPOCH FOR Vanilla GAN #######################################
 
 def train_epoch_gan(model_G: nn.Module, 
                     model_D: nn.Module, 
@@ -435,6 +435,7 @@ def train_epoch_gan(model_G: nn.Module,
                     optimizer_D: Optimizer, 
                     disc_iter: int,
                     gen_iter: int,
+                    feature_matching: bool, 
                     device: Literal['cpu','cuda','mps'] = 'cpu') -> Tuple: 
     model_G.train()
     model_D.train()
@@ -478,6 +479,14 @@ def train_epoch_gan(model_G: nn.Module,
             total += fake_batch[0].y.shape[0]
 
             dis_net_loss = real_loss + fake_loss 
+
+            # if feature_matching is True 
+            if feature_matching:
+                mean_x = torch.linalg.vector_norm(real_batch.x.mean(dim=0) - model_G(fake_batch)[0].mean(dim=0))
+                mean_x1 = torch.linalg.vector_norm(real_batch.edge_attr.mean(dim=0) - model_G(fake_batch)[1].mean(dim=0))
+                dis_net_loss = dis_net_loss + mean_x + mean_x1
+
+
             dis_net_loss.backward()
             optimizer_D.step()
             dis_loss += dis_net_loss.item()
@@ -500,6 +509,7 @@ def val_epoch_gan(model_G: nn.Module,
                     model_D: nn.Module, 
                     loader_G: DataLoader, 
                     loader_D: DataLoader, 
+                    feature_matching: bool, 
                     device: Literal['cpu','cuda','mps'] = 'cpu') -> Tuple: 
 
     model_G.eval()
@@ -543,9 +553,17 @@ def val_epoch_gan(model_G: nn.Module,
         total += fake_batch[0].y.shape[0]
 
         dis_net_loss = real_loss + fake_loss 
-        dis_loss += dis_net_loss.item()
         
-        # Train the generator to fool the discriminator 
+        
+        # if feature_matching is True 
+        if feature_matching:
+            mean_x = torch.linalg.vector_norm(real_batch.x.mean(dim=0) - model_G(fake_batch)[0].mean(dim=0))
+            mean_x1 = torch.linalg.vector_norm(real_batch.edge_attr.mean(dim=0) - model_G(fake_batch)[1].mean(dim=0))
+            dis_net_loss = dis_net_loss + mean_x + mean_x1
+        
+        dis_loss += dis_net_loss.item()
+
+        # validate the generator to fool the discriminator 
         G_D_fake_output = model_D(model_G(fake_batch)[0], fake_batch[0].edge_index, model_G(fake_batch)[1], fake_batch[0].batch)
         gen_train_loss = criterion(G_D_fake_output, fake_batch[0].y_fool.to(device))
 
@@ -566,6 +584,7 @@ def train_GAN(model_G: nn.Module,
               num_epoch: int, 
               disc_iter: int, 
               gen_iter: int, 
+              feature_matching: bool = True, 
               device: Literal['cpu','cuda','mps'] = 'cpu'):
     
     train_loader_G, val_loader_G, test_loader_G = all_loader_G[0], all_loader_G[1], all_loader_G[2]
@@ -586,12 +605,14 @@ def train_GAN(model_G: nn.Module,
                                                                     optimizer_D = optimizer_D, 
                                                                     disc_iter = disc_iter,
                                                                     gen_iter=gen_iter,
+                                                                    feature_matching=feature_matching,
                                                                     device = device)
         
         val_d_loss, val_d_accuracy, val_g_loss = val_epoch_gan(model_G = model_G, 
                                                             model_D = model_D, 
                                                             loader_G = val_loader_G, 
-                                                            loader_D = val_loader_D, 
+                                                            loader_D = val_loader_D,
+                                                            feature_matching=feature_matching, 
                                                             device = device)
         
         train_d_losses.append(train_d_loss)
@@ -611,8 +632,10 @@ def train_GAN(model_G: nn.Module,
         schedular_D_last_lr = schedular_D.get_last_lr()[0]
 
         if epoch % max(1, int(0.05 * num_epoch)) == 0: 
-            print(f"At epoch: {epoch}, training: {train_d_loss:.3e}, {train_d_accuracy:.2f}, {train_g_loss:.3e},\
-                validation: {val_d_loss:.3e}, {val_d_accuracy:.2f}, {val_g_loss:.3e}, lr: {schedular_D_last_lr:.1e}, {schedular_G_last_lr:.1e}")
+            print(f"At epoch: {epoch}"), 
+            print(f"training: D = {train_d_loss:.3e}, Acc = {train_d_accuracy:.2f}, G = {train_g_loss:.3e}")
+            print(f"validation: D = {val_d_loss:.3e}, Acc = {val_d_accuracy:.2f}, G = {val_g_loss:.3e}, lr_D = {schedular_D_last_lr:.1e}, lr_G {schedular_G_last_lr:.1e}")
+            print("------------------------------------------------------------------------------")
 
     
     end_tr = time.perf_counter()
@@ -623,7 +646,8 @@ def train_GAN(model_G: nn.Module,
     test_d_loss, test_d_accuracy, test_g_loss = val_epoch_gan(model_G = model_G, 
                                                             model_D = model_D, 
                                                             loader_G = test_loader_G, 
-                                                            loader_D = test_loader_D, 
+                                                            loader_D = test_loader_D,
+                                                            feature_matching=feature_matching, 
                                                             device = device)
 
     print(f"Test Performance: d_loss: {test_d_loss:.3e}, d_accuracy: {test_d_accuracy:.2f}, g_loss: {test_g_loss:.3e}")
@@ -639,6 +663,12 @@ def train_GAN(model_G: nn.Module,
                   'test_d_accuracy': test_d_accuracy}
     
     return all_losses 
+
+
+######################## TRAIN AND EVAL EPOCH FOR Wasserstein GAN #######################################
+
+
+
 
 
 

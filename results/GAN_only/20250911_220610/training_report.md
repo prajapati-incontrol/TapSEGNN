@@ -1,6 +1,6 @@
 # 📝 GAN Training Report
 
-**Generated on:** 2025-09-02 20:25:25
+**Generated on:** 2025-09-11 22:06:12
 
 ## ⚙️ Configuration
 
@@ -9,9 +9,9 @@ data:
   dis_scenario_type: 8
   gen_scenario_type: 9
   load_std: 0.1
-  net_name: net_4bus
+  net_name: net_A
   noise: true
-  num_samples: 256
+  num_samples: 4096
 description: 'Configuration for GAN experiment in /notebooks/rq_4_gans.ipynb
 
   '
@@ -38,26 +38,26 @@ model_G:
 training_D:
   lr: 1.0e-05
   schedular_min_lr: 1.0e-05
-  weight_decay: 1.0e-05
+  weight_decay: 0.0
 training_G:
   lr: 0.01
   schedular_min_lr: 0.0001
   weight_decay: 0.0
 training_GAN:
-  disc_iter: 2
+  disc_iter: 1
   early_stopping: false
-  gen_iter: 1
-  num_epoch: 100
+  gen_iter: 5
+  num_epoch: 50
   val_patience: 5
 ```
 
 ## 📊 Training Summary
 
-- **Total Epochs:** 100
-- **Final Generator Loss:** 2.1091
-- **Final Discriminator Loss:** 9.7833
-- **Final Discriminator Accuracy:** 0.3627
-- **Loss Difference (D-G):** 7.6742
+- **Total Epochs:** 50
+- **Final Generator Loss:** 15.0619
+- **Final Discriminator Loss:** 0.2040
+- **Final Discriminator Accuracy:** 1.0000
+- **Loss Difference (D-G):** -14.8579
 
 ## 📈 Training Dynamics
 
@@ -77,23 +77,23 @@ The loss difference plot shows how close the GAN is to Nash equilibrium (where d
 
 | Metric | Generator | Discriminator |
 |--------|-----------|---------------|
-| Mean | 0.5062 | 356.2405 |
-| Std | 0.8951 | 268.4386 |
-| Min | 0.0000 | 9.7833 |
-| Max | 4.2086 | 829.6883 |
+| Mean | 281.8253 | 41.6159 |
+| Std | 1561.8971 | 221.3984 |
+| Min | 0.0000 | 0.2002 |
+| Max | 11090.2502 | 1579.7844 |
 
 ### Discriminator Accuracy Statistics
 
-- **Mean Accuracy:** 0.1918
-- **Standard Deviation:** 0.0842
-- **Min Accuracy:** 0.0686
-- **Max Accuracy:** 0.3725
+- **Mean Accuracy:** 0.9171
+- **Standard Deviation:** 0.1958
+- **Min Accuracy:** 0.2669
+- **Max Accuracy:** 1.0000
 
 ## 💡 Training Insights
 
 ❌ **Poor Convergence**: Significant imbalance between generator and discriminator losses.
 
-⚠️ **Discriminator Too Weak**: Low accuracy may indicate poor discriminator training.
+⚠️ **Discriminator Too Strong**: High accuracy may indicate generator struggling.
 
 ⚠️ **Training Instability**: High variance in recent losses detected.
 
@@ -101,15 +101,15 @@ The loss difference plot shows how close the GAN is to Nash equilibrium (where d
 
 ### Power-Voltage Distribution Analysis
 
-- **JS Divergence (Power):** 0.934446
-- **JS Divergence (Voltage):** 0.411679
-- **KL Divergence (Power):** 4.167546
-- **KL Divergence (Voltage):** 1.175730
+- **JS Divergence (Power):** 0.652057
+- **JS Divergence (Voltage):** 0.956734
+- **KL Divergence (Power):** 2.230170
+- **KL Divergence (Voltage):** 5.477131
 
 ### Edge Power Distribution Analysis
 
-- **JS Divergence:** 0.917840
-- **KL Divergence:** 3.905321
+- **JS Divergence:** 0.904216
+- **KL Divergence:** 4.235827
 
 ## 📈 Statistical Summary
 
@@ -117,38 +117,32 @@ The loss difference plot shows how close the GAN is to Nash equilibrium (where d
 
 | Metric | Real Data | Generated Data | Difference |
 |--------|-----------|----------------|------------|
-| Power Mean | -0.0006 | -11.1009 | 11.1003 |
-| Voltage Mean | 1.0238 | 1.0058 | 0.0180 |
-| Power Std | 0.6293 | 38.1930 | 37.5637 |
-| Voltage Std | 0.0149 | 0.0494 | 0.0345 |
+| Power Mean | -0.0014 | 2.0692 | 2.0705 |
+| Voltage Mean | 1.0267 | 1.4860 | 0.4594 |
+| Power Std | 0.5557 | 4.3431 | 3.7874 |
+| Voltage Std | 0.0205 | 0.2473 | 0.2268 |
 
 ### Edge Features (Power Flow)
 
 | Metric | Real Data | Generated Data | Difference |
 |--------|-----------|----------------|------------|
-| Edge Power Mean | 0.3245 | 0.6139 | 0.2895 |
-| Edge Power Std | 0.0091 | 0.2794 | 0.2703 |
+| Edge Power Mean | 0.3107 | 12.7719 | 12.4612 |
+| Edge Power Std | 0.2515 | 11.5098 | 11.2583 |
 
 ## 🔍 Data Quality Assessment
 
 ### Sample Sizes
 
-- **Real Data Points:** 108
-- **Generated Data Points:** 108
-- **Edge Data Points (Real):** 108
-- **Edge Data Points (Generated):** 108
-
-## 📋 Performance Interpretation
-
-### Jensen-Shannon Divergence Analysis
-
-❌ **Poor Performance**: High JS divergence values indicate significant distribution mismatch.
+- **Real Data Points:** 2688
+- **Generated Data Points:** 2688
+- **Edge Data Points (Real):** 2688
+- **Edge Data Points (Generated):** 2688
 
 ### Key Findings
 
-- **Power Mean Deviation:** 1976244.00%
-- **Voltage Mean Deviation:** 1.76%
-- **Edge Power Mean Deviation:** 89.21%
+- **Power Mean Deviation:** 151266.36%
+- **Voltage Mean Deviation:** 44.74%
+- **Edge Power Mean Deviation:** 4010.28%
 
 ## 📊 Generated Visualizations
 
@@ -178,16 +172,6 @@ The following visualizations have been generated and saved:
 - **Jensen-Shannon Divergence:** Measures similarity between probability distributions (0 = identical, 1 = completely different)
 - **Kullback-Leibler Divergence:** Measures information loss when approximating one distribution with another
 - **Kernel Density Estimation:** Used for probability density estimation from samples
-
-## 💡 Recommendations
-
-### Model Status: Requires Improvement
-
-- Consider the following improvements:
-  - Review network architecture
-  - Adjust learning rates
-  - Increase training data diversity
-  - Implement advanced GAN techniques (e.g., progressive growing, spectral normalization)
 
 ---
 

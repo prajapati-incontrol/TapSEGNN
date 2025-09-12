@@ -44,6 +44,7 @@ analysis/*exp.ipynb
 *exp.ipynb
 *exp.py
 experiments_1.ipynb
+notebooks/experiments.ipynb
 
 # model parameters 
 *.pth
@@ -55,3 +56,4 @@ config/*.pth
 manimations/media 
 manimations/__pycache__ 
 manimations/*.pkl
+

@@ -28,7 +28,7 @@ def main():
 
     print(f"Using device: {device}")
 
-    net = initialize_network(config['data']['net_name'], else_load=config['data']['load_std'], verbose=True)
+    net = initialize_network(config['data']['net_name'], load_std=config['data']['load_std'], verbose=True)
 
     start_data_load = time.perf_counter()
     sampled_input_data = load_sampled_input_data(sc_type=config['data']['scenario_type'], 

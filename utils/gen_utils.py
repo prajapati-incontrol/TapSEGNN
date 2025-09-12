@@ -628,7 +628,10 @@ def generate_markdown_report_GAN(yaml_config: Dict,
         scaled_real_pv = batch_G[0].x_pfr
         scaled_real_p_edge = batch_G[1].x_pfr[:,0]
         scaled_gen_pv, scaled_gen_p_edge = model_G(batch_G)
-
+    except Exception as e: 
+        print(f"Exception occured at forward pass: {e}")
+    
+    try: 
         real_pv = inverse_scale(scaled_real_pv, scaler=sampled_input_data_G['scaler_node'])
         # all_real_p_values = real_pv[:,1].detach().cpu().numpy()
         # all_real_v_values = real_pv[:,0].detach().cpu().numpy()
@@ -636,7 +639,10 @@ def generate_markdown_report_GAN(yaml_config: Dict,
         gen_pv = inverse_scale(scaled_gen_pv, scaler=sampled_input_data_G['scaler_node'])
         # all_generated_p_values = gen_pv[:,1].detach().cpu().numpy()
         # all_generated_v_values = gen_pv[:,0].detach().cpu().numpy()
+    except Exception as e: 
+        print(f"Exception occured at calculating inverse: {e}")
 
+    try:     
         p_edge_mean = sampled_input_data_G['scaler_edge'].mean_[0]
         p_edge_var = sampled_input_data_G['scaler_edge'].var_[0]
 
@@ -653,7 +659,7 @@ def generate_markdown_report_GAN(yaml_config: Dict,
         generated_p_np = gen_pv[:,1].detach().cpu().numpy()
         real_p_edge_np = real_p_edge.detach().cpu().numpy()
         gen_p_edge_np = gen_p_edge.detach().cpu().numpy()
-
+    
         # Create labeled DataFrames with better naming
         real_df = pd.DataFrame({
             'Power': real_p_np,
@@ -669,7 +675,7 @@ def generate_markdown_report_GAN(yaml_config: Dict,
 
         # Combine datasets
         combined_data = pd.concat([real_df, gen_df], ignore_index=True)
-
+ 
         # Set up the plot with enhanced styling
         plt.style.use('default')  # Keep default matplotlib style
         sns.set_palette(["#2E86AB", "#A23B72"])  # Professional blue and magenta
@@ -962,7 +968,8 @@ def generate_markdown_report_GAN(yaml_config: Dict,
         plt.savefig(report_dir + f'/FIG_GAN_edge_power_kde_enhanced.png', dpi=300, bbox_inches='tight',
                     facecolor='white', edgecolor='none')
     except Exception as e: 
-        print(f"Report generation failed: {e}")
+        print(f"Report generation failed at KDE plots: {e}")
+        kde_plot = False
 
 
     # Generate markdown report
@@ -1043,7 +1050,41 @@ def generate_markdown_report_GAN(yaml_config: Dict,
         else:
             f.write("⚠️ **Training Instability**: High variance in recent losses detected.\n\n")
         
-        try: 
+        # Statistical Summary
+        f.write("## 📈 Statistical Summary\n\n")
+        f.write("### Node Features (Power & Voltage)\n\n")
+        f.write("| Metric | Real Data | Generated Data | Difference |\n")
+        f.write("|--------|-----------|----------------|------------|\n")
+        f.write(f"| Power Mean | {real_power_mean:.4f} | {gen_power_mean:.4f} | {abs(real_power_mean - gen_power_mean):.4f} |\n")
+        f.write(f"| Voltage Mean | {real_voltage_mean:.4f} | {gen_voltage_mean:.4f} | {abs(real_voltage_mean - gen_voltage_mean):.4f} |\n")
+        f.write(f"| Power Std | {real_p_np.std():.4f} | {generated_p_np.std():.4f} | {abs(real_p_np.std() - generated_p_np.std()):.4f} |\n")
+        f.write(f"| Voltage Std | {real_v_np.std():.4f} | {generated_v_np.std():.4f} | {abs(real_v_np.std() - generated_v_np.std()):.4f} |\n\n")
+        
+        f.write("### Edge Features (Power Flow)\n\n")
+        f.write("| Metric | Real Data | Generated Data | Difference |\n")
+        f.write("|--------|-----------|----------------|------------|\n")
+        f.write(f"| Edge Power Mean | {real_p_edge_np.mean():.4f} | {gen_p_edge_np.mean():.4f} | {abs(real_p_edge_np.mean() - gen_p_edge_np.mean()):.4f} |\n")
+        f.write(f"| Edge Power Std | {real_p_edge_np.std():.4f} | {gen_p_edge_np.std():.4f} | {abs(real_p_edge_np.std() - gen_p_edge_np.std()):.4f} |\n\n")
+        
+        # Data Quality Assessment
+        f.write("## 🔍 Data Quality Assessment\n\n")
+        f.write("### Sample Sizes\n\n")
+        f.write(f"- **Real Data Points:** {len(real_df)}\n")
+        f.write(f"- **Generated Data Points:** {len(gen_df)}\n")
+        f.write(f"- **Edge Data Points (Real):** {len(real_p_edge_np)}\n")
+        f.write(f"- **Edge Data Points (Generated):** {len(gen_p_edge_np)}\n\n")
+
+        f.write("### Key Findings\n\n")
+        power_diff_pct = abs(real_power_mean - gen_power_mean) / abs(real_power_mean) * 100
+        voltage_diff_pct = abs(real_voltage_mean - gen_voltage_mean) / abs(real_voltage_mean) * 100
+        edge_diff_pct = abs(real_p_edge_np.mean() - gen_p_edge_np.mean()) / abs(real_p_edge_np.mean()) * 100
+        
+        f.write(f"- **Power Mean Deviation:** {power_diff_pct:.2f}%\n")
+        f.write(f"- **Voltage Mean Deviation:** {voltage_diff_pct:.2f}%\n")
+        f.write(f"- **Edge Power Mean Deviation:** {edge_diff_pct:.2f}%\n\n")
+
+        
+        if kde_plot: 
             # Model Performance Metrics
             f.write("## 🎯 Model Performance Metrics\n\n")
             f.write("### Power-Voltage Distribution Analysis\n\n")
@@ -1056,110 +1097,26 @@ def generate_markdown_report_GAN(yaml_config: Dict,
             f.write(f"- **JS Divergence:** {js_divergence:.6f}\n")
             f.write(f"- **KL Divergence:** {kl_divergence:.6f}\n\n")
             
-            # Statistical Summary
-            f.write("## 📈 Statistical Summary\n\n")
-            f.write("### Node Features (Power & Voltage)\n\n")
-            f.write("| Metric | Real Data | Generated Data | Difference |\n")
-            f.write("|--------|-----------|----------------|------------|\n")
-            f.write(f"| Power Mean | {real_power_mean:.4f} | {gen_power_mean:.4f} | {abs(real_power_mean - gen_power_mean):.4f} |\n")
-            f.write(f"| Voltage Mean | {real_voltage_mean:.4f} | {gen_voltage_mean:.4f} | {abs(real_voltage_mean - gen_voltage_mean):.4f} |\n")
-            f.write(f"| Power Std | {real_p_np.std():.4f} | {generated_p_np.std():.4f} | {abs(real_p_np.std() - generated_p_np.std()):.4f} |\n")
-            f.write(f"| Voltage Std | {real_v_np.std():.4f} | {generated_v_np.std():.4f} | {abs(real_v_np.std() - generated_v_np.std()):.4f} |\n\n")
-            
-            f.write("### Edge Features (Power Flow)\n\n")
-            f.write("| Metric | Real Data | Generated Data | Difference |\n")
-            f.write("|--------|-----------|----------------|------------|\n")
-            f.write(f"| Edge Power Mean | {real_p_edge_np.mean():.4f} | {gen_p_edge_np.mean():.4f} | {abs(real_p_edge_np.mean() - gen_p_edge_np.mean()):.4f} |\n")
-            f.write(f"| Edge Power Std | {real_p_edge_np.std():.4f} | {gen_p_edge_np.std():.4f} | {abs(real_p_edge_np.std() - gen_p_edge_np.std()):.4f} |\n\n")
-            
-            # Data Quality Assessment
-            f.write("## 🔍 Data Quality Assessment\n\n")
-            f.write("### Sample Sizes\n\n")
-            f.write(f"- **Real Data Points:** {len(real_df)}\n")
-            f.write(f"- **Generated Data Points:** {len(gen_df)}\n")
-            f.write(f"- **Edge Data Points (Real):** {len(real_p_edge_np)}\n")
-            f.write(f"- **Edge Data Points (Generated):** {len(gen_p_edge_np)}\n\n")
-            
-            # Performance Interpretation
-            f.write("## 📋 Performance Interpretation\n\n")
-            
-            # JS Divergence interpretation
-            avg_js_node = (js_div_power + js_div_voltage) / 2
-            f.write("### Jensen-Shannon Divergence Analysis\n\n")
-            if avg_js_node < 0.1:
-                f.write("✅ **Excellent Performance**: JS divergence values indicate very close distribution matching.\n\n")
-            elif avg_js_node < 0.3:
-                f.write("✅ **Good Performance**: JS divergence values show reasonable distribution similarity.\n\n")
-            elif avg_js_node < 0.5:
-                f.write("⚠️ **Moderate Performance**: JS divergence values suggest some distribution differences.\n\n")
-            else:
-                f.write("❌ **Poor Performance**: High JS divergence values indicate significant distribution mismatch.\n\n")
-            
-            f.write("### Key Findings\n\n")
-            power_diff_pct = abs(real_power_mean - gen_power_mean) / abs(real_power_mean) * 100
-            voltage_diff_pct = abs(real_voltage_mean - gen_voltage_mean) / abs(real_voltage_mean) * 100
-            edge_diff_pct = abs(real_p_edge_np.mean() - gen_p_edge_np.mean()) / abs(real_p_edge_np.mean()) * 100
-            
-            f.write(f"- **Power Mean Deviation:** {power_diff_pct:.2f}%\n")
-            f.write(f"- **Voltage Mean Deviation:** {voltage_diff_pct:.2f}%\n")
-            f.write(f"- **Edge Power Mean Deviation:** {edge_diff_pct:.2f}%\n\n")
-            
             # Generated Visualizations
             f.write("## 📊 Generated Visualizations\n\n")
             f.write("The following visualizations have been generated and saved:\n\n")
+            
             f.write("1. **Power-Voltage KDE Comparison**\n")
-            f.write("   - File: `FIG_GAN_power_voltage_kde_comparison.pdf`\n")
-            f.write("   - File: `FIG_ch_results_GAN_power_voltage_kde_comparison.png`\n")
-            f.write("   - Shows joint distribution comparison of power and voltage values\n\n")
+            f.write("![pv_compare](FIG_GAN_power_voltage_kde_comparison.pdf)\n")            
             
             f.write("2. **Edge Power KDE Distribution**\n")
-            f.write("   - File: `FIG_GAN_edge_power_kde_enhanced.pdf`\n")
-            f.write("   - File: `FIG_GAN_edge_power_kde_enhanced.png`\n")
-            f.write("   - Shows distribution comparison of edge power flows\n\n")
-            
-            # Technical Details
-            f.write("## 🔧 Technical Details\n\n")
-            f.write("### Model Architecture\n\n")
-            f.write("- **Model Type:** Graph Generative Adversarial Network (GAN)\n")
-            f.write("- **Node Features:** Power (P) and Voltage Magnitude (|V|)\n")
-            f.write("- **Edge Features:** Power Flow (P+)\n")
-            f.write("- **Scaling:** StandardScaler applied to both node and edge features\n\n")
-            
-            f.write("### Evaluation Metrics\n\n")
-            f.write("- **Jensen-Shannon Divergence:** Measures similarity between probability distributions (0 = identical, 1 = completely different)\n")
-            f.write("- **Kullback-Leibler Divergence:** Measures information loss when approximating one distribution with another\n")
-            f.write("- **Kernel Density Estimation:** Used for probability density estimation from samples\n\n")
-            
-            # Recommendations
-            f.write("## 💡 Recommendations\n\n")
-            
-            if avg_js_node < 0.2:
-                f.write("### Model Status: Ready for Deployment\n\n")
-                f.write("- The model shows excellent performance with low divergence metrics\n")
-                f.write("- Generated distributions closely match real data patterns\n")
-                f.write("- Consider validation on additional test cases\n\n")
-            elif avg_js_node < 0.4:
-                f.write("### Model Status: Good Performance, Minor Improvements Possible\n\n")
-                f.write("- The model performs well but could benefit from:\n")
-                f.write("  - Extended training with more epochs\n")
-                f.write("  - Hyperparameter tuning\n")
-                f.write("  - Data augmentation techniques\n\n")
-            else:
-                f.write("### Model Status: Requires Improvement\n\n")
-                f.write("- Consider the following improvements:\n")
-                f.write("  - Review network architecture\n")
-                f.write("  - Adjust learning rates\n")
-                f.write("  - Increase training data diversity\n")
-                f.write("  - Implement advanced GAN techniques (e.g., progressive growing, spectral normalization)\n\n")
-            
-            # Footer
-            f.write("---\n\n")
-            f.write("*This report was automatically generated from GAN training results. ")
-            f.write("All metrics and visualizations are based on the latest model checkpoint.*\n")
-            print(f"📄 Training report saved to: {report_dir}/training_report.md")
-        except Exception as e:
-            print(f"Report generation failed: {e}")
+            f.write("![edge_power](FIG_GAN_edge_power_kde_enhanced.png)\n")
+        else: 
+            f.write(f"KDE plots not generated because of {e}")
+        
 
+            
+        # Footer
+        f.write("---\n\n")
+        f.write("*This report was automatically generated from GAN training results. ")
+        f.write("All metrics and visualizations are based on the latest model checkpoint.*\n")
+        print(f"📄 Training report saved to: {report_dir}/training_report.md")
+        
 
     # return report_dir
 
