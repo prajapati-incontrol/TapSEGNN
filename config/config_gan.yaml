@@ -8,7 +8,7 @@ data:
   net_name: net_A
   gen_scenario_type: 9
   dis_scenario_type: 8
-  num_samples: 256
+  num_samples: 80
   load_std:  0.1
   noise: True 
 
@@ -52,6 +52,6 @@ training_GAN:
   num_epoch: 100
   disc_iter: 2
   gen_iter: 1
-  feature_matching: True
+  feature_matching: False
   early_stopping: False
   val_patience: 5 

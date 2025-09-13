@@ -50,6 +50,7 @@ notebooks/experiments.ipynb
 *.pth
 config/*.pth
 
+*_report.md
 
 
 # manim files 

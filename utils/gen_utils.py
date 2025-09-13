@@ -494,6 +494,7 @@ def generate_markdown_report_GAN(yaml_config: Dict,
                                  test_loader_G: DataLoader, 
                                  model_G: nn.Module, 
                                  sampled_input_data_G: Dict, 
+                                 return_data: bool = False,
                                  ):
     """
     Generate a comprehensive markdown report for GAN training results.
@@ -684,36 +685,38 @@ def generate_markdown_report_GAN(yaml_config: Dict,
                                                             gen_v=generated_v_np, 
                                                             gen_p=generated_p_np, 
                                                         )
+        fig, ax = plt.subplots(figsize=(12,8), constrained_layout=True)
+        sns.set_theme(style="whitegrid", font_scale=1.3)
+        plt.rcParams['text.usetex'] = True
+
+        num_buses_range = np.arange(len(net.bus))
+        num_buses = len(net.bus)
+        plot_simgen_v = pd.DataFrame({
+            'Bus Index': np.concatenate([num_buses_range, num_buses_range]),
+            'Voltage (p.u.)': np.concatenate([simulated_pf_v, generated_v_np[:num_buses]]),
+            'Type': ['Simulated PF'] * num_buses + ['Generated'] * num_buses
+        })
+        
+        # try: 
+        sns.lineplot(data=plot_simgen_v, x='Bus Index', y='Voltage (p.u.)', 
+                hue='Type', marker='o', markersize=6, linewidth=2.5, ax=ax)
+        # Customize the plot
+        ax.set_xlabel('Sample Index', fontsize=14)
+        ax.set_ylabel('Voltage Magnitude (p.u.)', fontsize=14)
+        ax.set_title('Power Flow Consistency Check: Simulated vs Generated Voltages', fontsize=16, pad=20)
+        ax.legend(title='Voltage Source', title_fontsize=12, fontsize=12)
+        ax.grid(True, alpha=0.3)
+
+        plt.savefig(report_dir + f'/FIG_GAN_Simulated_vs_Generated_V.pdf', dpi=300, bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+        plt.savefig(report_dir + f'/FIG_GAN_Simulated_vs_Generated_V.png', dpi=300, bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+        plt.close()
+        
     except Exception as e: 
         print(f"At check_pf_consistency! {e}")
 
-    fig, ax = plt.subplots(figsize=(12,8), constrained_layout=True)
-    sns.set_theme(style="whitegrid", font_scale=1.3)
-    plt.rcParams['text.usetex'] = True
-
-    num_buses_range = np.arange(len(net.bus))
-    num_buses = len(net.bus)
-    plot_simgen_v = pd.DataFrame({
-        'Bus Index': np.concatenate([num_buses_range, num_buses_range]),
-        'Voltage (p.u.)': np.concatenate([simulated_pf_v, generated_v_np[:num_buses]]),
-        'Type': ['Simulated PF'] * num_buses + ['Generated'] * num_buses
-    })
     
-    # try: 
-    sns.lineplot(data=plot_simgen_v, x='Bus Index', y='Voltage (p.u.)', 
-            hue='Type', marker='o', markersize=6, linewidth=2.5, ax=ax)
-    # Customize the plot
-    ax.set_xlabel('Sample Index', fontsize=14)
-    ax.set_ylabel('Voltage Magnitude (p.u.)', fontsize=14)
-    ax.set_title('Power Flow Consistency Check: Simulated vs Generated Voltages', fontsize=16, pad=20)
-    ax.legend(title='Voltage Source', title_fontsize=12, fontsize=12)
-    ax.grid(True, alpha=0.3)
-
-    plt.savefig(report_dir + f'/FIG_GAN_Simulated_vs_Generated_V.pdf', dpi=300, bbox_inches='tight',
-                facecolor='white', edgecolor='none')
-    plt.savefig(report_dir + f'/FIG_GAN_Simulated_vs_Generated_V.png', dpi=300, bbox_inches='tight',
-                facecolor='white', edgecolor='none')
-        
     # except Exception as e: 
     #     print(f"Physical Consistency failed because: {e}")
 
@@ -886,6 +889,7 @@ def generate_markdown_report_GAN(yaml_config: Dict,
                     facecolor='white', edgecolor='none')
         plt.savefig(report_dir + f'/FIG_ch_results_GAN_power_voltage_hist_comparison.png', dpi=300, bbox_inches='tight',
                     facecolor='white', edgecolor='none')
+        plt.close()
         
         # Calculate and display statistical metrics
         def calculate_metrics(real_data, gen_data):
@@ -1048,6 +1052,9 @@ def generate_markdown_report_GAN(yaml_config: Dict,
                     facecolor='white', edgecolor='none')
         plt.savefig(report_dir + f'/FIG_GAN_edge_power_hist_enhanced.png', dpi=300, bbox_inches='tight',
                     facecolor='white', edgecolor='none')
+        
+        plt.close()
+
     except Exception as e: 
         print(f"KDE plots failed!: {e}")
         kde_plot = False
@@ -1207,6 +1214,7 @@ def generate_markdown_report_GAN(yaml_config: Dict,
                     facecolor='white', edgecolor='none')
         plt.savefig(report_dir + f'/FIG_ch_results_GAN_power_voltage_hist_comparison.png', dpi=300, bbox_inches='tight',
                     facecolor='white', edgecolor='none')
+        plt.close()
         
         # Calculate and display statistical metrics for edge power using histograms
         def calculate_metrics_histogram_single(real_data, gen_data, bins=50):
@@ -1339,6 +1347,7 @@ def generate_markdown_report_GAN(yaml_config: Dict,
                     facecolor='white', edgecolor='none')
         plt.savefig(report_dir + f'/FIG_GAN_edge_power_hist_enhanced.png', dpi=300, bbox_inches='tight',
                     facecolor='white', edgecolor='none')
+        plt.close()
         
     except Exception as e: 
         print(f"Report generation failed at histogram plots: {e}")
@@ -1506,8 +1515,15 @@ def generate_markdown_report_GAN(yaml_config: Dict,
         f.write("*This report was automatically generated from GAN training results. ")
         f.write("All metrics and visualizations are based on the latest model checkpoint.*\n")
         print(f"📄 Training report saved to: {report_dir}/training_report.md")
+    
+    if return_data: 
+        generated_data = {'gen_v': generated_v_np, 
+                        'gen_p': generated_p_np, 
+                        'gen_p_edge': gen_p_edge}
         
-
+        return generated_data, simulated_pf_v
+    else: 
+        return None 
     # return report_dir
 
 
@@ -1595,7 +1611,7 @@ def plot_real_v_generated_linebar(report_dir: str,
     plt.savefig(report_dir + f'/FIG_GAN_PVPedge_lineplot.pdf', bbox_inches='tight', 
                 facecolor='white', edgecolor='none')
 
-    plt.show()
+    plt.close()
     
     return fig, axes
 
