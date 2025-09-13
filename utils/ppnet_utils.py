@@ -50,7 +50,6 @@ def check_pf_consistency(net_name: str,
 
         # how close are generated voltage with the simulated power flow voltage 
         # Calculate comparison metrics
-        print(len(gen_v_nb), len(simulated_pf_v))
         voltage_diff = gen_v_nb - simulated_pf_v
         abs_diff = np.abs(voltage_diff)
         
