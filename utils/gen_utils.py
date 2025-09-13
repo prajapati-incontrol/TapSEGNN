@@ -30,12 +30,11 @@ import seaborn as sns
 from sklearn.preprocessing import StandardScaler
 import joblib 
 
-from utils.ppnet_utils import use_stored_pfr, custom_se, check_pf_consistency
+from utils.ppnet_utils import use_stored_pfr, custom_se, check_pf_consistency, initialize_network
 
 # Get the parent directory
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, parent_dir)
-
 
 def precision_round(number, significant_digits=3):
     power = "{:e}".format(number).split('e')[1]
@@ -665,355 +664,67 @@ def generate_markdown_report_GAN(yaml_config: Dict,
         print(f"Mean and variances calculated!")
     except Exception as e: 
         print(f"Exception occured at calculating mean and variances: {e}")
+
+    try: 
+        net = initialize_network(yaml_config['data']['net_name'])
+        plot_real_v_generated_linebar(report_dir=report_dir,
+                                      net=net, 
+                                      real_v=real_v_np, 
+                                      real_p=real_p_np, 
+                                      real_p_edge=real_p_edge_np, 
+                                      gen_v=generated_v_np, 
+                                      gen_p=generated_p_np, 
+                                      gen_p_edge=gen_p_edge_np)
+        print("Plotted real vs. generated line-bar plots!")
+    except Exception as e: 
+        print(f"Exception occured at plotting real vs. generated line-bar plots: {e}")
+    
+    try: 
+        results_pf, simulated_pf_v = check_pf_consistency(net_name=yaml_config['data']['net_name'],
+                                                            gen_v=generated_v_np, 
+                                                            gen_p=generated_p_np, 
+                                                        )
+    except Exception as e: 
+        print(f"At check_pf_consistency! {e}")
+
+    fig, ax = plt.subplots(figsize=(12,8), constrained_layout=True)
+    sns.set_theme(style="whitegrid", font_scale=1.3)
+    plt.rcParams['text.usetex'] = True
+
+    num_buses_range = np.arange(len(net.bus))
+    num_buses = len(net.bus)
+    plot_simgen_v = pd.DataFrame({
+        'Bus Index': np.concatenate([num_buses_range, num_buses_range]),
+        'Voltage (p.u.)': np.concatenate([simulated_pf_v, generated_v_np[:num_buses]]),
+        'Type': ['Simulated PF'] * num_buses + ['Generated'] * num_buses
+    })
     
     # try: 
-    #     check_pf_consistency(net_name=yaml_config['net_name'],
-    #                              gen_v=generated_v_np, 
-    #                              gen_p=generated_p_np, 
-    #                              gen_p_edge=gen_p_edge_np)
+    sns.lineplot(data=plot_simgen_v, x='Bus Index', y='Voltage (p.u.)', 
+            hue='Type', marker='o', markersize=6, linewidth=2.5, ax=ax)
+    # Customize the plot
+    ax.set_xlabel('Sample Index', fontsize=14)
+    ax.set_ylabel('Voltage Magnitude (p.u.)', fontsize=14)
+    ax.set_title('Power Flow Consistency Check: Simulated vs Generated Voltages', fontsize=16, pad=20)
+    ax.legend(title='Voltage Source', title_fontsize=12, fontsize=12)
+    ax.grid(True, alpha=0.3)
+
+    plt.savefig(report_dir + f'/FIG_GAN_Simulated_vs_Generated_V.pdf', dpi=300, bbox_inches='tight',
+                facecolor='white', edgecolor='none')
+    plt.savefig(report_dir + f'/FIG_GAN_Simulated_vs_Generated_V.png', dpi=300, bbox_inches='tight',
+                facecolor='white', edgecolor='none')
+        
     # except Exception as e: 
     #     print(f"Physical Consistency failed because: {e}")
 
     
-    # try: 
-    #     # Add statistical annotations
-    #     real_power_mean = real_p_np.mean()
-    #     real_voltage_mean = real_v_np.mean()
-    #     gen_power_mean = generated_p_np.mean()
-    #     gen_voltage_mean = generated_v_np.mean()
-
-
-    #     # Create labeled DataFrames with better naming
-    #     real_df = pd.DataFrame({
-    #         'Power': real_p_np,
-    #         'Voltage': real_v_np,
-    #         'Type': 'Real Data'
-    #     })
-
-    #     gen_df = pd.DataFrame({
-    #         'Power': generated_p_np,
-    #         'Voltage': generated_v_np,
-    #         'Type': 'Generated Data'
-    #     })
-
-    #     # Combine datasets
-    #     combined_data = pd.concat([real_df, gen_df], ignore_index=True)
- 
-    #     # Set up the plot with enhanced styling
-    #     plt.style.use('default')  # Keep default matplotlib style
-    #     sns.set_palette(["#2E86AB", "#A23B72"])  # Professional blue and magenta
-
-    #     # Create the enhanced jointplot
-    #     g = sns.jointplot(
-    #         data=combined_data,
-    #         x='Power',
-    #         y='Voltage',
-    #         hue='Type',
-    #         kind='hist',
-    #         fill=True,
-    #         alpha=0.6,
-    #         height=10,
-    #         ratio=5,
-    #         space=0.1,
-    #         fontsize=fontsize,
-    #         marginal_kws={'alpha': 0.7, 'linewidth': 2},
-    #         joint_kws={'alpha': 0.6, 'linewidths': 1.5},
-    #         legend=True,  
-    #     )
-
-    #     # # Enhance the main plot
-    #     g.ax_joint.grid(True, alpha=0.3, linestyle='-', linewidth=0.8)
-
-
-    #     # Enhance marginal plots
-    #     g.ax_marg_x.grid(True, alpha=0.3)
-    #     g.ax_marg_y.grid(True, alpha=0.3)
-
-    #     # Add mean markers
-    #     g.ax_joint.scatter(real_power_mean, real_voltage_mean, 
-    #                     marker='x', s=200, color='#2E86AB', 
-    #                     linewidth=3, label='Real Mean', zorder=5)
-    #     g.ax_joint.scatter(gen_power_mean, gen_voltage_mean, 
-    #                     marker='x', s=200, color='#A23B72', 
-    #                     linewidth=3, label='Generated Mean', zorder=5)
-        
-    #     # Calculate and display statistical metrics
-    #     def calculate_metrics(real_data, gen_data):
-    #         """Calculate JS and KL divergence for Power and Voltage columns."""
-            
-    #         def compute_divergences(real_series, gen_series):
-    #             # Combine data for common evaluation range
-    #             data = np.concatenate([real_series, gen_series])
-    #             x = np.linspace(data.min(), data.max(), 1000)
-                
-    #             # KDE estimation
-    #             real_kde = gaussian_kde(real_series)
-    #             gen_kde = gaussian_kde(gen_series)
-
-    #             # Evaluate densities
-    #             real_prob = real_kde(x)
-    #             gen_prob = gen_kde(x)
-
-    #             # Add epsilon to avoid zeros
-    #             epsilon = 1e-10
-    #             real_prob += epsilon
-    #             gen_prob += epsilon
-
-    #             # Re-normalize after epsilon adjustment
-    #             real_prob /= np.sum(real_prob)
-    #             gen_prob /= np.sum(gen_prob)
-
-    #             # Compute divergences
-    #             kl = np.sum(rel_entr(real_prob, gen_prob))  # KL(real || gen)
-    #             js = jensenshannon(real_prob, gen_prob, base=2) ** 2  # Square to get divergence
-
-    #             return js, kl
-
-    #         # Compute metrics for both Power and Voltage
-    #         js_div_power, kl_div_power = compute_divergences(real_data['Power'], gen_data['Power'])
-    #         js_div_voltage, kl_div_voltage = compute_divergences(real_data['Voltage'], gen_data['Voltage'])
-
-    #         return js_div_power, js_div_voltage, kl_div_power, kl_div_voltage
-
-    #     js_div_power, js_div_voltage, kl_div_power, kl_div_voltage = calculate_metrics(real_df, gen_df)
-
-    #     # Add text box with statistical information
-    #     stats_text = f"""JS Divergence:
-    #     Power: {js_div_power:.4f}
-    #     Voltage: {js_div_voltage:.4f}
-
-    #     KL Divergence:
-    #     Power: {kl_div_power:.4f}
-    #     Voltage: {kl_div_voltage:.4f}
-
-    #     Sample Size:
-    #     Real: {len(real_df)}
-    #     Generated: {len(gen_df)}"""
-
-    #     g.ax_joint.text(0.02, 0.98, stats_text,
-    #                 transform=g.ax_joint.transAxes,
-    #                 fontsize=16,
-    #                 verticalalignment='top',
-    #                 bbox=dict(boxstyle='round,pad=0.5', 
-    #                             facecolor='white', 
-    #                             alpha=0.8,
-    #                             edgecolor='gray'))
-
-    #     # Get existing legend handles and labels from the seaborn plot
-    #     handles, labels = g.ax_joint.get_legend_handles_labels()
-
-    #     mean_handles = [
-    #         Line2D([0], [0], marker='o', color='#2E86AB', linewidth=0, markersize=10, markeredgewidth=3),
-    #         Line2D([0], [0], marker='o', color='#A23B72', linewidth=0, markersize=10, markeredgewidth=3)
-    #     ]
-
-    #     # Combine all handles and labels
-    #     all_handles = handles + mean_handles
-    #     all_labels = labels + ['Real Distribution', 'Generated Distribution']
-
-    #     # Create the complete legend
-    #     g.ax_joint.legend(handles=all_handles, 
-    #                     labels=all_labels,
-    #                     loc='lower left', 
-    #                     fontsize=16)
-
-    #     # Enhance legend with increased font size
-    #     # g.ax_joint.legend(loc='lower right', 
-    #     #                  fontsize=14,  # Use your fontsize variable
-    #     #                 #  frameon=True, 
-    #     #                 #  fancybox=True, 
-    #     #                 #  shadow=True,
-    #     #                 #  framealpha=0.9
-    #     #                  )
-
-    #     g.ax_joint.set_xlabel("$P$",fontsize=fontsize)
-    #     g.ax_joint.set_ylabel("$|V\u0332|$",fontsize=fontsize)
-    #     g.ax_joint.tick_params(axis='x', labelsize=fontsize)
-    #     g.ax_joint.tick_params(axis='y', labelsize=fontsize)
-
-    #     # Improve layout
-    #     plt.tight_layout()
-
-    #     # Save in multiple formats
-    #     # plt.savefig(report_dir + f'/FIG_GAN_power_voltage_kde_comparison.pdf', dpi=300, bbox_inches='tight',
-    #     #             facecolor='white', edgecolor='none')
-    #     # plt.savefig(report_dir + f'/FIG_ch_results_GAN_power_voltage_kde_comparison.png', dpi=300, bbox_inches='tight',
-    #     #             facecolor='white', edgecolor='none')
-    #     plt.savefig(report_dir + f'/FIG_GAN_power_voltage_hist_comparison.pdf', dpi=300, bbox_inches='tight',
-    #                 facecolor='white', edgecolor='none')
-    #     plt.savefig(report_dir + f'/FIG_ch_results_GAN_power_voltage_hist_comparison.png', dpi=300, bbox_inches='tight',
-    #                 facecolor='white', edgecolor='none')
-        
-    #     # Calculate and display statistical metrics
-    #     def calculate_metrics(real_data, gen_data):
-    #         """Calculate JS and KL divergence for Power and Voltage columns."""
-    #         def compute_divergences(real_series, gen_series):
-    #             # Combine data for common evaluation range
-    #             data = np.concatenate([real_series, gen_series])
-    #             x = np.linspace(data.min(), data.max(), 1000)
-                
-    #             # KDE estimation
-    #             real_kde = gaussian_kde(real_series)
-    #             gen_kde = gaussian_kde(gen_series)
-                
-    #             # Evaluate densities
-    #             real_prob = real_kde(x)
-    #             gen_prob = gen_kde(x)
-                
-    #             # Add epsilon to avoid zeros
-    #             epsilon = 1e-10
-    #             real_prob += epsilon
-    #             gen_prob += epsilon
-                
-    #             # Re-normalize after epsilon adjustment
-    #             real_prob /= np.sum(real_prob)
-    #             gen_prob /= np.sum(gen_prob)
-                
-    #             # Compute divergences
-    #             kl = np.sum(rel_entr(real_prob, gen_prob))  # KL(real || gen)
-    #             js = jensenshannon(real_prob, gen_prob, base=2) ** 2  # Square to get divergence
-                
-    #             return js, kl
-            
-    #         # For edge power, we need to handle single series
-    #         if isinstance(real_data, (pd.Series, np.ndarray)) and isinstance(gen_data, (pd.Series, np.ndarray)):
-    #             js_div, kl_div = compute_divergences(real_data, gen_data)
-    #             return js_div, kl_div
-    #         else:
-    #             # Compute metrics for both Power and Voltage
-    #             js_div_power, kl_div_power = compute_divergences(real_data['Power'], gen_data['Power'])
-    #             js_div_voltage, kl_div_voltage = compute_divergences(real_data['Voltage'], gen_data['Voltage'])
-    #             return js_div_power, js_div_voltage, kl_div_power, kl_div_voltage
-
-    #     # Create a DataFrame for plotting
-    #     df_edge = pd.DataFrame({
-    #         'Value': np.concatenate([real_p_edge_np, gen_p_edge_np]),
-    #         'Type': ['Real Data'] * len(real_p_edge_np) + ['Generated Data'] * len(gen_p_edge_np)
-    #     })
-
-    #     # Calculate divergence metrics
-    #     js_divergence, kl_divergence = calculate_metrics(real_p_edge_np, gen_p_edge_np)
-
-    #     # Set up enhanced plotting style
-    #     plt.style.use('default')
-    #     fig, ax = plt.subplots(figsize=(12, 8), dpi=300)
-
-    #     # Enhanced color palette
-    #     colors = ['#2E86AB', '#A23B72']  # Professional blue and magenta
-    #     sns.set_palette(colors)
-
-    #     # Create the enhanced KDE plot
-    #     hist_plot = sns.histplot(
-    #         data=df_edge,
-    #         x='Value',
-    #         hue='Type',
-    #         fill=True,
-    #         common_norm=False,
-    #         alpha=0.6,
-    #         linewidth=2.5,
-    #         ax=ax,
-    #         # legend=True,
-    #     )
-
-
-    #     # kde_plot = sns.kdeplot(
-    #     #     data=df_edge,
-    #     #     x='Value',
-    #     #     hue='Type',
-    #     #     fill=True,
-    #     #     common_norm=False,
-    #     #     alpha=0.6,
-    #     #     linewidth=2.5,
-    #     #     ax=ax,
-    #     #     # legend=True,
-    #     # )
-
-    #     # kde_plot.legend()
-
-    #     # Add unfilled KDE lines for better definition
-    #     # sns.kdeplot(
-    #     #     data=df_edge,
-    #     #     x='Value',
-    #     #     hue='Type',
-    #     #     fill=True,
-    #     #     common_norm=False,
-    #     #     linewidth=3,
-    #     #     ax=ax,
-    #     #     # legend=True,
-    #     # )
-
-    #     # Enhanced axis labels and title
-    #     ax.set_xlabel('$P^+$', fontsize=fontsize)
-    #     ax.set_ylabel('Histogram', fontsize=fontsize)
-    #     ax.tick_params(axis='x', labelsize=fontsize)
-    #     ax.tick_params(axis='y', labelsize=fontsize)
-
-    #     # ax.set_title('Distribution Comparison: Real vs Generated Edge Power',fontsize=fontsize, pad=20)
-
-    #     # Add grid
-    #     ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.8)
-
-    #     # Create comprehensive statistics text box
-    #     stats_text = f"""Divergence Measures:
-    #     JS Divergence: {js_divergence:.6f}
-    #     KL Divergence: {kl_divergence:.6f}
-        
-    #     Sample Sizes:
-    #     Real: {len(real_p_edge_np)}, Generated: {len(gen_p_edge_np)}"""
-
-    #     # Add statistics text box
-    #     ax.text(0.58, 0.98, stats_text,
-    #             transform=ax.transAxes,
-    #             fontsize=fontsize,
-    #             verticalalignment='top',
-    #             bbox=dict(boxstyle='round,pad=0.8', 
-    #                     facecolor='white', 
-    #                     alpha=0.9,
-    #                     edgecolor='gray',
-    #                     linewidth=1))
-        
-    #     mean_handles = [
-    #         Line2D([0], [0], marker='o', color='#2E86AB', linewidth=0, markersize=10, markeredgewidth=3),
-    #         Line2D([0], [0], marker='o', color='#A23B72', linewidth=0, markersize=10, markeredgewidth=3)
-    #     ]
-
-    #     # Combine all handles and labels
-    #     all_handles = mean_handles
-    #     all_labels = ['Real Distribution', 'Generated Distribution']
-
-    #     # Create the complete legend
-    #     ax.legend(handles=all_handles, 
-    #                     labels=all_labels,
-    #                     loc='center right', 
-    #                     fontsize=fontsize)
-
-    #     # Enhance the plot area
-    #     ax.spines['top'].set_visible(False)
-    #     ax.spines['right'].set_visible(False)
-    #     ax.spines['left'].set_linewidth(1.2)
-    #     ax.spines['bottom'].set_linewidth(1.2)
-
-    #     # Adjust layout
-    #     plt.tight_layout()
-
-    #     # Save in multiple formats
-    #     # plt.savefig(report_dir + f'/FIG_GAN_edge_power_kde_enhanced.pdf', dpi=300, bbox_inches='tight',
-    #     #             facecolor='white', edgecolor='none')
-    #     # plt.savefig(report_dir + f'/FIG_GAN_edge_power_kde_enhanced.png', dpi=300, bbox_inches='tight',
-    #     #             facecolor='white', edgecolor='none')
-    #     plt.savefig(report_dir + f'/FIG_GAN_edge_power_hist_enhanced.pdf', dpi=300, bbox_inches='tight',
-    #                 facecolor='white', edgecolor='none')
-    #     plt.savefig(report_dir + f'/FIG_GAN_edge_power_hist_enhanced.png', dpi=300, bbox_inches='tight',
-    #                 facecolor='white', edgecolor='none')
-    # except Exception as e: 
-    #     print(f"Report generation failed at KDE plots: {e}")
-    #     kde_plot = False
     try: 
         # Add statistical annotations
         real_power_mean = real_p_np.mean()
         real_voltage_mean = real_v_np.mean()
         gen_power_mean = generated_p_np.mean()
         gen_voltage_mean = generated_v_np.mean()
+
 
         # Create labeled DataFrames with better naming
         real_df = pd.DataFrame({
@@ -1030,10 +741,343 @@ def generate_markdown_report_GAN(yaml_config: Dict,
 
         # Combine datasets
         combined_data = pd.concat([real_df, gen_df], ignore_index=True)
-
+ 
         # Set up the plot with enhanced styling
         plt.style.use('default')  # Keep default matplotlib style
         sns.set_palette(["#2E86AB", "#A23B72"])  # Professional blue and magenta
+
+        # Create the enhanced jointplot
+        g = sns.jointplot(
+            data=combined_data,
+            x='Power',
+            y='Voltage',
+            hue='Type',
+            kind='hist',
+            fill=True,
+            alpha=0.6,
+            height=10,
+            ratio=5,
+            space=0.1,
+            fontsize=fontsize,
+            marginal_kws={'alpha': 0.7, 'linewidth': 2},
+            joint_kws={'alpha': 0.6, 'linewidths': 1.5},
+            legend=True,  
+        )
+
+        # # Enhance the main plot
+        g.ax_joint.grid(True, alpha=0.3, linestyle='-', linewidth=0.8)
+
+
+        # Enhance marginal plots
+        g.ax_marg_x.grid(True, alpha=0.3)
+        g.ax_marg_y.grid(True, alpha=0.3)
+
+        # Add mean markers
+        g.ax_joint.scatter(real_power_mean, real_voltage_mean, 
+                        marker='x', s=200, color='#2E86AB', 
+                        linewidth=3, label='Real Mean', zorder=5)
+        g.ax_joint.scatter(gen_power_mean, gen_voltage_mean, 
+                        marker='x', s=200, color='#A23B72', 
+                        linewidth=3, label='Generated Mean', zorder=5)
+        
+        # Calculate and display statistical metrics
+        def calculate_metrics(real_data, gen_data):
+            """Calculate JS and KL divergence for Power and Voltage columns."""
+            
+            def compute_divergences(real_series, gen_series):
+                # Combine data for common evaluation range
+                data = np.concatenate([real_series, gen_series])
+                x = np.linspace(data.min(), data.max(), 1000)
+                
+                # KDE estimation
+                real_kde = gaussian_kde(real_series)
+                gen_kde = gaussian_kde(gen_series)
+
+                # Evaluate densities
+                real_prob = real_kde(x)
+                gen_prob = gen_kde(x)
+
+                # Add epsilon to avoid zeros
+                epsilon = 1e-10
+                real_prob += epsilon
+                gen_prob += epsilon
+
+                # Re-normalize after epsilon adjustment
+                real_prob /= np.sum(real_prob)
+                gen_prob /= np.sum(gen_prob)
+
+                # Compute divergences
+                kl = np.sum(rel_entr(real_prob, gen_prob))  # KL(real || gen)
+                js = jensenshannon(real_prob, gen_prob, base=2) ** 2  # Square to get divergence
+
+                return js, kl
+
+            # Compute metrics for both Power and Voltage
+            js_div_power, kl_div_power = compute_divergences(real_data['Power'], gen_data['Power'])
+            js_div_voltage, kl_div_voltage = compute_divergences(real_data['Voltage'], gen_data['Voltage'])
+
+            return js_div_power, js_div_voltage, kl_div_power, kl_div_voltage
+
+        js_div_power, js_div_voltage, kl_div_power, kl_div_voltage = calculate_metrics(real_df, gen_df)
+
+        # Add text box with statistical information
+        stats_text = f"""JS Divergence:
+        Power: {js_div_power:.4f}
+        Voltage: {js_div_voltage:.4f}
+
+        KL Divergence:
+        Power: {kl_div_power:.4f}
+        Voltage: {kl_div_voltage:.4f}
+
+        Sample Size:
+        Real: {len(real_df)}
+        Generated: {len(gen_df)}"""
+
+        g.ax_joint.text(0.02, 0.98, stats_text,
+                    transform=g.ax_joint.transAxes,
+                    fontsize=16,
+                    verticalalignment='top',
+                    bbox=dict(boxstyle='round,pad=0.5', 
+                                facecolor='white', 
+                                alpha=0.8,
+                                edgecolor='gray'))
+
+        # Get existing legend handles and labels from the seaborn plot
+        handles, labels = g.ax_joint.get_legend_handles_labels()
+
+        mean_handles = [
+            Line2D([0], [0], marker='o', color='#2E86AB', linewidth=0, markersize=10, markeredgewidth=3),
+            Line2D([0], [0], marker='o', color='#A23B72', linewidth=0, markersize=10, markeredgewidth=3)
+        ]
+
+        # Combine all handles and labels
+        all_handles = handles + mean_handles
+        all_labels = labels + ['Real Distribution', 'Generated Distribution']
+
+        # Create the complete legend
+        g.ax_joint.legend(handles=all_handles, 
+                        labels=all_labels,
+                        loc='lower left', 
+                        fontsize=16)
+
+        # Enhance legend with increased font size
+        # g.ax_joint.legend(loc='lower right', 
+        #                  fontsize=14,  # Use your fontsize variable
+        #                 #  frameon=True, 
+        #                 #  fancybox=True, 
+        #                 #  shadow=True,
+        #                 #  framealpha=0.9
+        #                  )
+
+        g.ax_joint.set_xlabel("$P$",fontsize=fontsize)
+        g.ax_joint.set_ylabel("$|V\u0332|$",fontsize=fontsize)
+        g.ax_joint.tick_params(axis='x', labelsize=fontsize)
+        g.ax_joint.tick_params(axis='y', labelsize=fontsize)
+
+        # Improve layout
+        plt.tight_layout()
+
+        # Save in multiple formats
+        # plt.savefig(report_dir + f'/FIG_GAN_power_voltage_kde_comparison.pdf', dpi=300, bbox_inches='tight',
+        #             facecolor='white', edgecolor='none')
+        # plt.savefig(report_dir + f'/FIG_ch_results_GAN_power_voltage_kde_comparison.png', dpi=300, bbox_inches='tight',
+        #             facecolor='white', edgecolor='none')
+        plt.savefig(report_dir + f'/FIG_GAN_power_voltage_hist_comparison.pdf', dpi=300, bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+        plt.savefig(report_dir + f'/FIG_ch_results_GAN_power_voltage_hist_comparison.png', dpi=300, bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+        
+        # Calculate and display statistical metrics
+        def calculate_metrics(real_data, gen_data):
+            """Calculate JS and KL divergence for Power and Voltage columns."""
+            def compute_divergences(real_series, gen_series):
+                # Combine data for common evaluation range
+                data = np.concatenate([real_series, gen_series])
+                x = np.linspace(data.min(), data.max(), 1000)
+                
+                # KDE estimation
+                real_kde = gaussian_kde(real_series)
+                gen_kde = gaussian_kde(gen_series)
+                
+                # Evaluate densities
+                real_prob = real_kde(x)
+                gen_prob = gen_kde(x)
+                
+                # Add epsilon to avoid zeros
+                epsilon = 1e-10
+                real_prob += epsilon
+                gen_prob += epsilon
+                
+                # Re-normalize after epsilon adjustment
+                real_prob /= np.sum(real_prob)
+                gen_prob /= np.sum(gen_prob)
+                
+                # Compute divergences
+                kl = np.sum(rel_entr(real_prob, gen_prob))  # KL(real || gen)
+                js = jensenshannon(real_prob, gen_prob, base=2) ** 2  # Square to get divergence
+                
+                return js, kl
+            
+            # For edge power, we need to handle single series
+            if isinstance(real_data, (pd.Series, np.ndarray)) and isinstance(gen_data, (pd.Series, np.ndarray)):
+                js_div, kl_div = compute_divergences(real_data, gen_data)
+                return js_div, kl_div
+            else:
+                # Compute metrics for both Power and Voltage
+                js_div_power, kl_div_power = compute_divergences(real_data['Power'], gen_data['Power'])
+                js_div_voltage, kl_div_voltage = compute_divergences(real_data['Voltage'], gen_data['Voltage'])
+                return js_div_power, js_div_voltage, kl_div_power, kl_div_voltage
+
+        # Create a DataFrame for plotting
+        df_edge = pd.DataFrame({
+            'Value': np.concatenate([real_p_edge_np, gen_p_edge_np]),
+            'Type': ['Real Data'] * len(real_p_edge_np) + ['Generated Data'] * len(gen_p_edge_np)
+        })
+
+        # Calculate divergence metrics
+        js_divergence, kl_divergence = calculate_metrics(real_p_edge_np, gen_p_edge_np)
+
+        # Set up enhanced plotting style
+        plt.style.use('default')
+        fig, ax = plt.subplots(figsize=(12, 8), dpi=300)
+
+        # Enhanced color palette
+        colors = ['#2E86AB', '#A23B72']  # Professional blue and magenta
+        sns.set_palette(colors)
+
+        # Create the enhanced KDE plot
+        hist_plot = sns.histplot(
+            data=df_edge,
+            x='Value',
+            hue='Type',
+            fill=True,
+            common_norm=False,
+            alpha=0.6,
+            linewidth=2.5,
+            ax=ax,
+            # legend=True,
+        )
+
+
+        # kde_plot = sns.kdeplot(
+        #     data=df_edge,
+        #     x='Value',
+        #     hue='Type',
+        #     fill=True,
+        #     common_norm=False,
+        #     alpha=0.6,
+        #     linewidth=2.5,
+        #     ax=ax,
+        #     # legend=True,
+        # )
+
+        # kde_plot.legend()
+
+        # Add unfilled KDE lines for better definition
+        # sns.kdeplot(
+        #     data=df_edge,
+        #     x='Value',
+        #     hue='Type',
+        #     fill=True,
+        #     common_norm=False,
+        #     linewidth=3,
+        #     ax=ax,
+        #     # legend=True,
+        # )
+
+        # Enhanced axis labels and title
+        ax.set_xlabel('$P^+$', fontsize=fontsize)
+        ax.set_ylabel('Histogram', fontsize=fontsize)
+        ax.tick_params(axis='x', labelsize=fontsize)
+        ax.tick_params(axis='y', labelsize=fontsize)
+
+        # ax.set_title('Distribution Comparison: Real vs Generated Edge Power',fontsize=fontsize, pad=20)
+
+        # Add grid
+        ax.grid(True, alpha=0.3, linestyle='-', linewidth=0.8)
+
+        # Create comprehensive statistics text box
+        stats_text = f"""Divergence Measures:
+        JS Divergence: {js_divergence:.6f}
+        KL Divergence: {kl_divergence:.6f}
+        
+        Sample Sizes:
+        Real: {len(real_p_edge_np)}, Generated: {len(gen_p_edge_np)}"""
+
+        # Add statistics text box
+        ax.text(0.58, 0.98, stats_text,
+                transform=ax.transAxes,
+                fontsize=fontsize,
+                verticalalignment='top',
+                bbox=dict(boxstyle='round,pad=0.8', 
+                        facecolor='white', 
+                        alpha=0.9,
+                        edgecolor='gray',
+                        linewidth=1))
+        
+        mean_handles = [
+            Line2D([0], [0], marker='o', color='#2E86AB', linewidth=0, markersize=10, markeredgewidth=3),
+            Line2D([0], [0], marker='o', color='#A23B72', linewidth=0, markersize=10, markeredgewidth=3)
+        ]
+
+        # Combine all handles and labels
+        all_handles = mean_handles
+        all_labels = ['Real Distribution', 'Generated Distribution']
+
+        # Create the complete legend
+        ax.legend(handles=all_handles, 
+                        labels=all_labels,
+                        loc='center right', 
+                        fontsize=fontsize)
+
+        # Enhance the plot area
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_linewidth(1.2)
+        ax.spines['bottom'].set_linewidth(1.2)
+
+        # Adjust layout
+        plt.tight_layout()
+
+        # Save in multiple formats
+        # plt.savefig(report_dir + f'/FIG_GAN_edge_power_kde_enhanced.pdf', dpi=300, bbox_inches='tight',
+        #             facecolor='white', edgecolor='none')
+        # plt.savefig(report_dir + f'/FIG_GAN_edge_power_kde_enhanced.png', dpi=300, bbox_inches='tight',
+        #             facecolor='white', edgecolor='none')
+        plt.savefig(report_dir + f'/FIG_GAN_edge_power_hist_enhanced.pdf', dpi=300, bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+        plt.savefig(report_dir + f'/FIG_GAN_edge_power_hist_enhanced.png', dpi=300, bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+    except Exception as e: 
+        print(f"KDE plots failed!: {e}")
+        kde_plot = False
+
+    try: 
+        # # Add statistical annotations
+        # real_power_mean = real_p_np.mean()
+        # real_voltage_mean = real_v_np.mean()
+        # gen_power_mean = generated_p_np.mean()
+        # gen_voltage_mean = generated_v_np.mean()
+
+        # # Create labeled DataFrames with better naming
+        # real_df = pd.DataFrame({
+        #     'Power': real_p_np,
+        #     'Voltage': real_v_np,
+        #     'Type': 'Real Data'
+        # })
+
+        # gen_df = pd.DataFrame({
+        #     'Power': generated_p_np,
+        #     'Voltage': generated_v_np,
+        #     'Type': 'Generated Data'
+        # })
+
+        # # Combine datasets
+        # combined_data = pd.concat([real_df, gen_df], ignore_index=True)
+
+        # # Set up the plot with enhanced styling
+        # plt.style.use('default')  # Keep default matplotlib style
+        # sns.set_palette(["#2E86AB", "#A23B72"])  # Professional blue and magenta
 
         # Create the enhanced jointplot with histograms
         g = sns.jointplot(
@@ -1429,17 +1473,34 @@ def generate_markdown_report_GAN(yaml_config: Dict,
         # Generated Visualizations
         f.write("## 📊 Generated Visualizations\n\n")
         f.write("The following visualizations have been generated and saved:\n\n")
+
+        try: 
+            f.write("1. **Power-Voltage KDE Comparison**\n")
+            f.write("![pv_compare](FIG_GAN_power_voltage_kde_comparison.png)\n")            
+            
+            f.write("2. **Edge Power KDE Distribution**\n")
+            f.write("![edge_power](FIG_GAN_edge_power_kde_enhanced.png)\n")
+            
+            f.write("1. **Power-Voltage Histogram Comparison**\n")
+            f.write("![pv_compare](FIG_ch_results_GAN_power_voltage_hist_comparison.png)\n")            
+            
+            f.write("2. **Edge Power Histogram Distribution**\n")
+            f.write("![edge_power](FIG_GAN_edge_power_hist_enhanced.png)\n")
+
+            f.write("2. **P Real vs. Generated line plots**")
+            f.write("![rg_line](FIG_GAN_PVPedge_lineplot.png)\n")
+        except Exception as e: 
+            print(e)
         
-        f.write("1. **Power-Voltage KDE Comparison**\n")
-        f.write("![pv_compare](FIG_GAN_power_voltage_kde_comparison.png)\n")            
-        
-        f.write("2. **Edge Power KDE Distribution**\n")
-        f.write("![edge_power](FIG_GAN_edge_power_kde_enhanced.png)\n")
+        # Physical consistency of Output 
+        f.write("## Physical Consistency of Imputed Measurements")
+        f.write(f"1. Power Flow Converges? {results_pf['convergence_status']}\n\n")
+        f.write(f"2. **Simulated vs. Generated Voltage Profile**\n")
+        f.write("![sim_gen_v](FIG_GAN_Simulated_vs_Generated_V.png)")
+
         # else: 
             # f.write(f"KDE plots not generated because of {e}")
         
-
-            
         # Footer
         f.write("---\n\n")
         f.write("*This report was automatically generated from GAN training results. ")
@@ -1448,6 +1509,95 @@ def generate_markdown_report_GAN(yaml_config: Dict,
         
 
     # return report_dir
+
+
+#####################################################################################
+def plot_real_v_generated_linebar(report_dir: str, 
+                                    net: pp.pandapowerNet, 
+                                    real_v: np.ndarray, 
+                                    real_p: np.ndarray, 
+                                    real_p_edge: np.ndarray, 
+                                    gen_v: np.ndarray, 
+                                    gen_p: np.ndarray, 
+                                    gen_p_edge: np.ndarray):
+
+    num_buses = len(net.bus)
+    num_lines = len(net.line)
+    num_trafos = len(net.trafo)
+    num_edges = num_lines + num_trafos
+
+    # Set seaborn style
+    sns.set_style("whitegrid")
+    plt.rcParams['figure.figsize'] = (15, 12)
+
+    # Create subplots
+    fig, axes = plt.subplots(1, 3, figsize=(18, 12))
+    fig.suptitle(f'Real vs Generated Data Comparison (Buses: {num_buses})', 
+                 fontsize=16, fontweight='bold')
+
+    # 1. Line plot for V values
+    ax1 = axes[0]
+    x_indices = np.arange(num_buses)
+    sns.lineplot(x=x_indices, y=real_v[:num_buses], label='Real V', ax=ax1, color='blue', alpha=0.7)
+    sns.lineplot(x=x_indices, y=gen_v[:num_buses], label='Generated V', ax=ax1, color='red', alpha=0.7)
+
+    # Adaptive range for V
+    v_min = min(np.min(real_v[:num_buses]), np.min(gen_v[:num_buses]))
+    v_max = max(np.max(real_v[:num_buses]), np.max(gen_v[:num_buses]))
+    v_margin = (v_max - v_min) * 0.05
+    ax1.set_ylim(v_min - v_margin, v_max + v_margin)
+    # ax1.set_title('Voltage over buses')
+    ax1.set_xlabel('Sample Index')
+    ax1.set_ylabel('Voltage (p.u.)')
+    ax1.legend()
+
+    # 2. Line plot for P values
+    ax2 = axes[1]
+    real_p = real_p[:num_buses]
+    gen_p = gen_p[:num_buses]
+    sns.lineplot(x=x_indices, y=real_p, label='Real P', ax=ax2, color='green', alpha=0.7)
+    sns.lineplot(x=x_indices, y=gen_p, label='Generated P', ax=ax2, color='orange', alpha=0.7)
+
+    # Adaptive range for P
+    p_min = min(np.min(real_p), np.min(gen_p))
+    p_max = max(np.max(real_p), np.max(gen_p))
+    p_margin = (p_max - p_min) * 0.05
+    ax2.set_ylim(p_min - p_margin, p_max + p_margin)
+    # ax2.set_title('Power Values Over Time')
+    ax2.set_xlabel('Sample Index')
+    ax2.set_ylabel('Power (MW)')
+    ax2.legend()
+
+    # 3. Line plot for P_edge values
+    ax3 = axes[2]
+    x_indices_edge = np.arange(num_edges)
+    real_p_edge = real_p_edge[:num_edges]
+    gen_p_edge = gen_p_edge[:num_edges]
+    sns.lineplot(x=x_indices_edge, y=real_p_edge, label='Real P Edge', ax=ax3, color='purple', alpha=0.7)
+    sns.lineplot(x=x_indices_edge, y=gen_p_edge, label='Generated P Edge', ax=ax3, color='brown', alpha=0.7)
+
+    # Adaptive range for P_edge
+    p_edge_min = min(np.min(real_p_edge), np.min(gen_p_edge))
+    p_edge_max = max(np.max(real_p_edge), np.max(gen_p_edge))
+    p_edge_margin = (p_edge_max - p_edge_min) * 0.05
+    ax3.set_ylim(p_edge_min - p_edge_margin, p_edge_max + p_edge_margin)
+    # ax3.set_title('Edge Power Values Over Time')
+    ax3.set_xlabel('Sample Index')
+    ax3.set_ylabel('Edge Power (MW)')
+    ax3.legend()
+
+    # Adjust layout
+    plt.tight_layout()
+
+    # Save the figure with high quality
+    plt.savefig(report_dir + f'/FIG_GAN_PVPedge_lineplot.png', dpi=300, bbox_inches='tight', 
+                facecolor='white', edgecolor='none')
+    plt.savefig(report_dir + f'/FIG_GAN_PVPedge_lineplot.pdf', bbox_inches='tight', 
+                facecolor='white', edgecolor='none')
+
+    plt.show()
+    
+    return fig, axes
 
 
 #####################################################################################

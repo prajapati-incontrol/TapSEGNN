@@ -27,12 +27,50 @@ sys.path.insert(0, parent_dir)
 
 def check_pf_consistency(net_name: str,
                         gen_v: np.ndarray, 
-                        gen_p: np.ndarray, 
-                        gen_p_edge: np.ndarray):
+                        gen_p: np.ndarray):
     
     net = initialize_network(net_name=net_name)
+    num_buses = len(net.bus)
+    gen_v_nb = gen_v[:num_buses]
+    gen_p_nb = gen_p[:num_buses]
+    pp.runpp(net)
+    # actual voltage profile across the buses
+    real_v = net.res_bus.vm_pu.values
+    pp.drop_elements(net=net, element_type="load", element_index=range(len(net.load)))
+    pp.drop_elements(net=net, element_type="sgen", element_index=range(len(net.sgen)))
+    for i in range(len(net.bus)): 
+        pp.create_sgen(net=net, bus=i, p_mw = gen_p_nb[i]) # positve is injeciton, negative is consumption 
     
-    return 
+    try: 
+        pp.runpp(net=net)
+        print(f"Power Flow Converged!")
+        
+        # voltage profile accounting for generated power values 
+        simulated_pf_v = net.res_bus.vm_pu.values 
+
+        # how close are generated voltage with the simulated power flow voltage 
+        # Calculate comparison metrics
+        print(len(gen_v_nb), len(simulated_pf_v))
+        voltage_diff = gen_v_nb - simulated_pf_v
+        abs_diff = np.abs(voltage_diff)
+        
+        results = {
+            'mean_abs_error': np.mean(abs_diff),
+            'std_abs_error': np.std(abs_diff),
+            'max_abs_error': np.max(abs_diff),
+            'rmse': np.sqrt(np.mean(voltage_diff**2)),
+            'mean_relative_error': np.mean(abs_diff / simulated_pf_v) * 100,  # percentage
+            'voltage_diff': voltage_diff,
+            'real_v': real_v,
+            'gen_v': gen_v_nb,
+            'simulated_pf_v': simulated_pf_v,
+            'convergence_status': 'converged'
+        }    
+
+    except Exception as e: 
+        print(f"Power flow did not converge, generated values are not realistic: {e}")
+
+    return results, simulated_pf_v
 
 
 
