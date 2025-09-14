@@ -1501,11 +1501,14 @@ def generate_markdown_report_GAN(yaml_config: Dict,
         except Exception as e: 
             print(e)
         
-        # Physical consistency of Output 
-        f.write("## Physical Consistency of Imputed Measurements")
-        f.write(f"1. Power Flow Converges? {results_pf['convergence_status']}\n\n")
-        f.write(f"2. **Simulated vs. Generated Voltage Profile**\n")
-        f.write("![sim_gen_v](FIG_GAN_Simulated_vs_Generated_V.png)")
+        try: 
+            # Physical consistency of Output 
+            f.write("## Physical Consistency of Imputed Measurements")
+            f.write(f"1. Power Flow Converges? {results_pf['convergence_status']}\n\n")
+            f.write(f"2. **Simulated vs. Generated Voltage Profile**\n")
+            f.write("![sim_gen_v](FIG_GAN_Simulated_vs_Generated_V.png)")
+        except Exception as e: 
+            print(f"At markdown writing: {e}")
 
         # else: 
             # f.write(f"KDE plots not generated because of {e}")

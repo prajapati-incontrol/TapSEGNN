@@ -482,10 +482,11 @@ def train_epoch_gan(model_G: nn.Module,
 
             # if feature_matching is True 
             if feature_matching:
-                mean_x = torch.linalg.vector_norm(real_batch.x.mean(dim=0) - model_G(fake_batch)[0].mean(dim=0))
-                mean_x1 = torch.linalg.vector_norm(real_batch.edge_attr.mean(dim=0) - model_G(fake_batch)[1].mean(dim=0))
-                dis_net_loss = dis_net_loss + 10*(mean_x + mean_x1)
-
+                err_mean_x = torch.linalg.vector_norm(real_batch.x.mean(dim=0) - model_G(fake_batch)[0].mean(dim=0))
+                err_std_x = torch.linalg.vector_norm(real_batch.x.std(dim=0) - model_G(fake_batch)[0].std(dim=0))
+                err_mean_x1 = torch.linalg.vector_norm(real_batch.edge_attr.mean(dim=0) - model_G(fake_batch)[1].mean(dim=0))
+                err_std_x1 = torch.linalg.vector_norm(real_batch.edge_attr.std(dim=0) - model_G(fake_batch)[1].std(dim=0))
+                dis_net_loss += (err_mean_x + err_mean_x1) + err_std_x + err_std_x1
 
             dis_net_loss.backward()
             optimizer_D.step()
@@ -539,7 +540,6 @@ def val_epoch_gan(model_G: nn.Module,
         D_real_output_binary = (torch.sigmoid(D_real_output) > 0.5).float()
         correct += (D_real_output_binary == real_batch.y.to(device)).sum().item()
         total += real_batch.y.shape[0]
-            
 
         # discriminator output logit for fake samples as inputs 
         D_fake_output = model_D(model_G(fake_batch)[0], fake_batch[0].edge_index, model_G(fake_batch)[1], fake_batch[0].batch)
@@ -554,12 +554,13 @@ def val_epoch_gan(model_G: nn.Module,
 
         dis_net_loss = real_loss + fake_loss 
         
-        
         # if feature_matching is True 
         if feature_matching:
-            mean_x = torch.linalg.vector_norm(real_batch.x.mean(dim=0) - model_G(fake_batch)[0].mean(dim=0))
-            mean_x1 = torch.linalg.vector_norm(real_batch.edge_attr.mean(dim=0) - model_G(fake_batch)[1].mean(dim=0))
-            dis_net_loss = dis_net_loss + mean_x + mean_x1
+                err_mean_x = torch.linalg.vector_norm(real_batch.x.mean(dim=0) - model_G(fake_batch)[0].mean(dim=0))
+                err_std_x = torch.linalg.vector_norm(real_batch.x.std(dim=0) - model_G(fake_batch)[0].std(dim=0))
+                err_mean_x1 = torch.linalg.vector_norm(real_batch.edge_attr.mean(dim=0) - model_G(fake_batch)[1].mean(dim=0))
+                err_std_x1 = torch.linalg.vector_norm(real_batch.edge_attr.std(dim=0) - model_G(fake_batch)[1].std(dim=0))
+                dis_net_loss += (err_mean_x + err_mean_x1) + err_std_x + err_std_x1
         
         dis_loss += dis_net_loss.item()
 

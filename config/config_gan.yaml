@@ -8,7 +8,7 @@ data:
   net_name: net_A
   gen_scenario_type: 9
   dis_scenario_type: 8
-  num_samples: 80
+  num_samples: 8192
   load_std:  0.1
   noise: True 
 
