@@ -43,7 +43,8 @@ class DiscDataset(Dataset):
 class NodeEdgeTapDatasetV2(Dataset):
     def __init__(self,
                  model_name: str, 
-                 sampled_input_data: Dict): 
+                 sampled_input_data: Dict, 
+                 missing_measurements: bool = False): 
         """
         Make torch_geometric dataset for node, edge and tap input features and labels.
 
@@ -55,6 +56,12 @@ class NodeEdgeTapDatasetV2(Dataset):
         """
         super().__init__()
         print(f"Dataset for {model_name} selected!\n")
+
+        # when giving input to generator model 
+        self.missing_measurements = missing_measurements
+        self.node_mask = sampled_input_data['node_mask']
+        self.edge_mask = sampled_input_data['edge_mask']
+
         self.x = sampled_input_data['node_input_feat'] 
         self.y = sampled_input_data['y_label'] 
         self.num_samples = self.x.shape[0] # num_samples
@@ -94,29 +101,70 @@ class NodeEdgeTapDatasetV2(Dataset):
             for trafo in range(self.num_trafos):
                 self.y_tap[sample, :, trafo] = self.y_trafo_label[sample][trafo]['tap_pos'] 
 
+        # generator input 
+        if missing_measurements: 
+            # random noise over missing values 
+            self.z_x = torch.rand_like(self.x)
+            self.z_edge_attr = torch.rand_like(self.edge_attr)
+
+            # available measurements with random noise at missing values 
+            self.x_bar = self.x * self.node_mask + (1 - self.node_mask) * self.z_x 
+            self.edge_attr_bar = self.edge_attr * self.edge_mask + (1 - self.edge_mask) * self.z_edge_attr
 
     def __getitem__(self, index):
-        node_graph_data = Data(x=self.x[index],
-                                edge_index=self.edge_index, 
-                                y=self.y[index], 
-                                y_trafo_label=self.y_trafo_label[index],
-                                y_tap = self.y_tap[index,:])
-        if self.dir_pf: 
-            edge_HL_graph_data = Data(x=self.edge_attr[index],
-                                    edge_index=self.edge_index_l[index], 
-                                    edge_attr=self.edge_weight_l[index],
-                                    edge_index_u=self.edge_index_u[index], 
-                                    edge_attr2=self.edge_weight_u[index])
-        else:
-            edge_HL_graph_data = Data(x=self.edge_attr[index],
-                                    edge_index=self.edge_index_l, 
-                                    edge_attr=self.edge_weight_l,
-                                    edge_index_u=self.edge_index_u, 
-                                    edge_attr2=self.edge_weight_u) 
+        if not self.missing_measurements: 
+            node_graph_data = Data(x=self.x[index],
+                                    edge_index=self.edge_index, 
+                                    y=self.y[index], 
+                                    y_trafo_label=self.y_trafo_label[index],
+                                    y_tap = self.y_tap[index,:])
+            if self.dir_pf: 
+                edge_HL_graph_data = Data(x=self.edge_attr[index],
+                                        edge_index=self.edge_index_l[index], 
+                                        edge_attr=self.edge_weight_l[index],
+                                        edge_index_u=self.edge_index_u[index], 
+                                        edge_attr2=self.edge_weight_u[index])
+            else:
+                edge_HL_graph_data = Data(x=self.edge_attr[index],
+                                        edge_index=self.edge_index_l, 
+                                        edge_attr=self.edge_weight_l,
+                                        edge_index_u=self.edge_index_u, 
+                                        edge_attr2=self.edge_weight_u) 
 
-        edge_LG_graph_data = Data(x=self.edge_attr[index], 
-                                edge_index=self.edge_index_lg, 
-                                edge_attr=self.edge_weight_lg)
+            edge_LG_graph_data = Data(x=self.edge_attr[index], 
+                                    edge_index=self.edge_index_lg, 
+                                    edge_attr=self.edge_weight_lg)
+        
+        else: 
+            node_graph_data = Data(x=self.x_bar[index],
+                                    edge_index=self.edge_index, 
+                                    y=self.y[index], 
+                                    y_trafo_label=self.y_trafo_label[index],
+                                    y_tap = self.y_tap[index,:],
+                                    node_mask=self.node_mask[index], 
+                                    x_pfr=self.x[index])
+            if self.dir_pf: 
+                edge_HL_graph_data = Data(x=self.edge_attr_bar[index],
+                                        edge_index=self.edge_index_l[index], 
+                                        edge_attr=self.edge_weight_l[index],
+                                        edge_index_u=self.edge_index_u[index], 
+                                        edge_attr2=self.edge_weight_u[index], 
+                                        edge_mask=self.edge_mask[index], 
+                                        x_pfr=self.edge_attr[index])
+            else:
+                edge_HL_graph_data = Data(x=self.edge_attr_bar[index],
+                                        edge_index=self.edge_index_l, 
+                                        edge_attr=self.edge_weight_l,
+                                        edge_index_u=self.edge_index_u, 
+                                        edge_attr2=self.edge_weight_u,
+                                        edge_mask=self.edge_mask[index], 
+                                        x_pfr=self.edge_attr[index])
+
+            edge_LG_graph_data = Data(x=self.edge_attr_bar[index], 
+                                    edge_index=self.edge_index_lg, 
+                                    edge_attr=self.edge_weight_lg, 
+                                    edge_mask=self.edge_mask[index], 
+                                    x_pfr=self.edge_attr[index])
 
         return node_graph_data, edge_HL_graph_data, edge_LG_graph_data
 

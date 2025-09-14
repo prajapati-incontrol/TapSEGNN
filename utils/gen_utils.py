@@ -495,6 +495,7 @@ def generate_markdown_report_GAN(yaml_config: Dict,
                                  model_G: nn.Module, 
                                  sampled_input_data_G: Dict, 
                                  return_data: bool = False,
+                                 seed: int = 0,
                                  ):
     """
     Generate a comprehensive markdown report for GAN training results.
@@ -513,7 +514,11 @@ def generate_markdown_report_GAN(yaml_config: Dict,
     """ 
 
     current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-    report_dir = f"{parent_dir}/results/GAN_only/{current_time}"
+    report_dir = f"{parent_dir}/results/GAN_only/{current_time}_{seed}"
+
+    # save model 
+    # torch.save(model_G.state_dict(), report_dir)
+
     os.makedirs(report_dir, exist_ok=True)
 
     plt.style.use('seaborn-v0_8-whitegrid')

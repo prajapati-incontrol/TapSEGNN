@@ -461,10 +461,10 @@ def load_sampled_input_data(sc_type: int,
                 sampled_input_data['edge_index_dir'] = edge_index_dir
 
                 nnz_node_mask = torch.count_nonzero(node_mask[0,:,:])
-                nnz_edge_mask = torch.count_nonzero(edge_mask[0,0,:])
+                nnz_edge_mask = torch.count_nonzero(edge_mask[0,:,0])
 
                 print(f"Number of V, P measurements {nnz_node_mask} out of {node_mask[0,:,:].numel()}\n")
-                print(f"Number of P_to, Q_to, P_from, Q_from measurements {nnz_edge_mask} out of {edge_mask[0,0,:].numel()}\n")
+                print(f"Number of P_to, Q_to, P_from, Q_from measurements {nnz_edge_mask} out of {edge_mask[0,:,0].numel()}\n")
 
                 return sampled_input_data
                 
