@@ -434,12 +434,12 @@ class NEGATGenerator(NEGATRegressor):
         # agg_mssgs to imputations 
         x_o = self.mlp_gat(alpha_gat)
 
-        if mask: 
-            x_o = x_o * node_mask + x_o * (1 - node_mask)
-            x1_o = x1 * edge_mask[:,0] + x1 * (1 - edge_mask[:,0])
-        else: 
-            x_o = x_o 
-            x1_o = x1
+        # if mask: 
+        x_o = node_data.x * node_mask + x_o * (1 - node_mask)
+        x1_o = edge_data.x[:,0] * edge_mask[:,0] + x1 * (1 - edge_mask[:,0])
+        # else: 
+            # x_o = x_o 
+            # x1_o = x1
 
         return x_o, x1_o
     
