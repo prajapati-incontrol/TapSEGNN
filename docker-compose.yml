@@ -1,0 +1,53 @@
+version: "3.9"
+
+services:
+  # Development with Jupyter
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8888:8888"
+    volumes:
+      - ".:/app"
+      - "./data:/app/data"
+      - "./results:/app/results"
+    environment:
+      - JUPYTER_TOKEN=dev
+    command: >
+      bash -c "
+      pip install -r requirements-dev.txt && jupyter lab --ip=0.0.0.0 --port=8888 --no-browser --allow-root --NotebookApp.token='' --NotebookApp.password='' "
+
+  # Production training
+  train:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - "./data:/app/data"
+      - "./results:/app/results"
+      - "./config:/app/config"
+    environment:
+      - CONFIG_FILE=${CONFIG_FILE:-config/config.yaml}
+      - PYTHONPATH=/app
+    restart: unless-stopped
+    command: ["python", "main.py"]
+
+  # GAN experiments (inherits from train)
+  train-gan:
+    extends:
+      service: train
+    environment:
+      - CONFIG_FILE=config/config_gan.yaml
+      - PYTHONPATH=/app
+
+  # Interactive shell
+  shell:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ".:/app"
+    stdin_open: true
+    tty: true
+    command: bash
