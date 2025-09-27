@@ -1,0 +1,23 @@
+services:
+  tapsegnn: 
+    build: 
+      context: . 
+      args: 
+        PYTHON_VERSION: 3.11.11 
+    image: tapsegnn-image 
+    container_name: tapsegnn-container 
+    stdin_open: true 
+    tty: true 
+    volumes:
+    - type: bind 
+      source: . 
+      target: /tapsegnn
+    working_dir: /tapsegnn 
+    environment:
+      - PYTHONUNBUFFERED=1
+      - MATPLOTLIB_BACKEND=Agg
+    command: ["/bin/bash"] 
+
+  
+
+
