@@ -1,6 +1,16 @@
 ARG PYTHON_VERSION=3.11.11
 FROM python:${PYTHON_VERSION}-slim AS base 
 
+# Install system build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    gcc \
+    pkg-config \
+    libcairo2-dev \
+    libpango1.0-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+
 # setup working directory 
 WORKDIR /tapsegnn
 
