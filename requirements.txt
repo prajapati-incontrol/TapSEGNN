@@ -133,6 +133,7 @@ rpds-py==0.23.1
 scikit-learn==1.6.1
 scipy==1.13.1
 screeninfo==0.8.1
+seaborn==0.13.2
 Send2Trash==1.8.3
 six==1.17.0
 skia-pathops==0.8.0.post2
@@ -165,6 +166,6 @@ webcolors==24.11.1
 webencodings==0.5.1
 websocket-client==1.8.0
 widgetsnbextension==4.0.13
+xlsxwriter==3.2.5
 xml-python==0.4.3
 yarl==1.18.3
-pyyaml
