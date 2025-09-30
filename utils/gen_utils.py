@@ -454,7 +454,7 @@ def write_markdown_report(config: Dict, results: Dict, all_losses: Tuple, report
         f.write("![Pred vs. Labels kde](va_pred_label_joint.png)")
 
 
-def generate_markdown_report(
+def generate_markdown_report_and_save_model(
                            current_time: str, 
                            all_losses: Tuple, 
                            config: Dict, 
@@ -468,6 +468,8 @@ def generate_markdown_report(
     """
     # Create directory for report files
     report_dir = create_report_directory(current_time=current_time)
+
+    
     
     # Set up plotting style
     setup_plotting_style(usetex=usetex)

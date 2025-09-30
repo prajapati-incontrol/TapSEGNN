@@ -1,24 +1,13 @@
-import argparse
-import numpy as np
-import pandapower as pp
-import matplotlib.pyplot as plt 
-
 import time
 from datetime import datetime
-
 import torch 
-import os 
-import sys 
-# import logging 
-import joblib
 
 from src.dataset.custom_dataset import NodeEdgeTapDatasetV2
 from src.training.trainer import trainer
-from utils.model_utils import initialize_model, get_eval_results, save_model
-from utils.gen_utils import dataset_splitter, get_rmse, process_trafo_neighbor_loader, get_device, load_config, generate_markdown_report
-from utils.ppnet_utils import initialize_network, get_trafo_ids_from_percent
+from utils.model_utils import initialize_model, get_eval_results
+from utils.gen_utils import dataset_splitter, get_device, load_config, generate_markdown_report_and_save_model
+from utils.ppnet_utils import initialize_network
 from utils.load_data_utils import load_sampled_input_data
-from utils.plot_utils import plot_two_vec, plot_loss_curves, plot_va_bar
 
 torch.manual_seed(0)
 
@@ -134,19 +123,15 @@ def main():
                             scaler=sampled_input_data['scaler_y_label'])
     
     current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-    generate_markdown_report(current_time=current_time,
+    generate_markdown_report_and_save_model(current_time=current_time,
                             all_losses=all_losses, 
                             config=config, 
                             results=results, 
                             plot_loader=plot_loader, 
                             trained_model=model, 
                             sampled_input_data=sampled_input_data, 
-                            usetex=False)
-    
-    # save_model_bool = input("Do you want to save the model? y/n \n")
-    # if save_model_bool == "y":
-    #     pass
-    # save_model(model, path=os.getcwd() + f"/saved_models/{current_time}_{config['model']['name']}_mvo_tip{trafo_id_percent}_tapweight{loss_tap_weights}_ns{config['data']['num_samples']}.pth")
+                            usetex=False,
+                            save_model=config['save_model'])
 
 if __name__ == "__main__":
     main()
