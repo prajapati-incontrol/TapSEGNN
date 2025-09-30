@@ -31,6 +31,7 @@ from sklearn.preprocessing import StandardScaler
 import joblib 
 
 from utils.ppnet_utils import use_stored_pfr, custom_se, check_pf_consistency, initialize_network
+from utils.model_utils import save_model
 
 # Get the parent directory
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -462,14 +463,18 @@ def generate_markdown_report_and_save_model(
                            plot_loader: DataLoader, 
                            trained_model: nn.Module,
                            sampled_input_data: Dict, 
-                           usetex: bool = False):
+                           usetex: bool = False, 
+                           save_model_bool: bool = False):
     """
     Generate a professional report with visualizations of model performance and data distributions.
     """
     # Create directory for report files
     report_dir = create_report_directory(current_time=current_time)
 
-    
+    if save_model_bool == True:
+        save_model(trained_model, path=os.getcwd() + f"{report_dir}/TapSEGNN.pth")
+        print("Model saved!")
+
     
     # Set up plotting style
     setup_plotting_style(usetex=usetex)
@@ -489,7 +494,7 @@ def generate_markdown_report_and_save_model(
     print(f"Report generated successfully in {report_dir}")
 
 #####################################################################################
-def generate_markdown_report_GAN(yaml_config: Dict, 
+def generate_markdown_report_GAN_and_save_model(yaml_config: Dict, 
                                  train_g_losses: List, 
                                  train_d_losses: List, 
                                  train_d_accuracies: List, 
@@ -500,7 +505,7 @@ def generate_markdown_report_GAN(yaml_config: Dict,
                                  return_data: bool = False,
                                  seed: int = 0,
                                  usetex: bool = False,
-                                 ):
+                                 save_model_bool: bool = False):
     """
     Generate a comprehensive markdown report for GAN training results.
     
@@ -521,6 +526,9 @@ def generate_markdown_report_GAN(yaml_config: Dict,
     report_dir = f"{parent_dir}/results/GAN_only/{current_time}_{seed}"
 
     # save model 
+    if save_model_bool == True:
+        save_model(model_G, path=os.getcwd() + f"{report_dir}/TapSEGNN.pth")
+        print("Generator Model saved!")
     # torch.save(model_G.state_dict(), report_dir)
 
     os.makedirs(report_dir, exist_ok=True)
