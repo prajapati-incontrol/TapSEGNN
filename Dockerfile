@@ -30,5 +30,7 @@ RUN mkdir -p results
 ENV PYTHONUNBUFFERED=1
 ENV MATPLOTLIB_BACKEND=Agg
 
+EXPOSE 8080
+
 # optional command to run the whole training. 
 CMD ["python","main.py"]
