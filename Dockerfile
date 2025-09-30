@@ -32,5 +32,10 @@ ENV MATPLOTLIB_BACKEND=Agg
 
 EXPOSE 8080
 
+# Create non-root user with minimum necessary privileges 
+RUN useradd -m -u 1000 scientist && chown -R scientist:scientist /tapsegnn 
+USER scientist 
+
+
 # optional command to run the whole training. 
 CMD ["python","main.py"]
