@@ -50,7 +50,7 @@ def create_report_directory(current_time: str) -> str:
     return report_dir
 
 
-def setup_plotting_style():
+def setup_plotting_style(usetex: bool = False):
     """Set up the plotting style for consistent visualization."""
     sns.set_theme(style="whitegrid", font_scale=1.3)
     plt.rcParams['text.usetex'] = True
@@ -461,7 +461,8 @@ def generate_markdown_report(
                            results: Dict,
                            plot_loader: DataLoader, 
                            trained_model: nn.Module,
-                           sampled_input_data: Dict):
+                           sampled_input_data: Dict, 
+                           usetex: bool = False):
     """
     Generate a professional report with visualizations of model performance and data distributions.
     """
@@ -469,7 +470,7 @@ def generate_markdown_report(
     report_dir = create_report_directory(current_time=current_time)
     
     # Set up plotting style
-    setup_plotting_style()
+    setup_plotting_style(usetex=usetex)
     
     # Generate all visualizations
     generate_load_boxplots(sampled_input_data, report_dir)
@@ -496,6 +497,7 @@ def generate_markdown_report_GAN(yaml_config: Dict,
                                  sampled_input_data_G: Dict, 
                                  return_data: bool = False,
                                  seed: int = 0,
+                                 usetex: bool = False,
                                  ):
     """
     Generate a comprehensive markdown report for GAN training results.
@@ -692,7 +694,8 @@ def generate_markdown_report_GAN(yaml_config: Dict,
                                                         )
         fig, ax = plt.subplots(figsize=(12,8), constrained_layout=True)
         sns.set_theme(style="whitegrid", font_scale=1.3)
-        plt.rcParams['text.usetex'] = True
+        if usetex == True: 
+            plt.rcParams['text.usetex'] = True
 
         num_buses_range = np.arange(len(net.bus))
         num_buses = len(net.bus)

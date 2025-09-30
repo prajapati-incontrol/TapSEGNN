@@ -140,7 +140,8 @@ def main():
                             results=results, 
                             plot_loader=plot_loader, 
                             trained_model=model, 
-                            sampled_input_data=sampled_input_data)
+                            sampled_input_data=sampled_input_data, 
+                            usetex=False)
     
     # save_model_bool = input("Do you want to save the model? y/n \n")
     # if save_model_bool == "y":

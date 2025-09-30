@@ -1,0 +1,26 @@
+# Ignore Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore virtual environments
+.venv/
+
+
+# Ignore build/test artifacts
+build/
+dist/
+*.egg-info/
+
+# Ignore git metadata
+.git
+.gitignore
+
+# Ignore Docker files
+Dockerfile
+docker-compose*.yml
+
+# Ignore OS junk files
+.DS_Store
+Thumbs.db
