@@ -24,3 +24,6 @@ docker-compose*.yml
 # Ignore OS junk files
 .DS_Store
 Thumbs.db
+
+# contains auto-generated reports as markdown files with saved models in the same directory.
+results/ 

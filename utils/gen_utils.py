@@ -480,7 +480,7 @@ def generate_markdown_report_and_save_model(
     report_dir = create_report_directory(current_time=current_time)
 
     if save_model_bool == True:
-        save_model(trained_model, path=os.getcwd() + f"{report_dir}/TapSEGNN.pth")
+        save_model(trained_model, path=f"{report_dir}/TapSEGNN.pth")
         print("Model saved!")
 
     
@@ -533,13 +533,13 @@ def generate_markdown_report_GAN_and_save_model(yaml_config: Dict,
     current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
     report_dir = f"{parent_dir}/results/GAN_only/{current_time}_{seed}"
 
+    os.makedirs(report_dir, exist_ok=True)
+
     # save model 
     if save_model_bool == True:
-        save_model(model_G, path=os.getcwd() + f"{report_dir}/TapSEGNN.pth")
+        save_model(model_G, path=f"{report_dir}/TapSEGNN.pth")
         print("Generator Model saved!")
     # torch.save(model_G.state_dict(), report_dir)
-
-    os.makedirs(report_dir, exist_ok=True)
 
     plt.style.use('seaborn-v0_8-whitegrid')
     sns.set_palette("husl")

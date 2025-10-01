@@ -137,7 +137,7 @@ def main():
                             trained_model=model, 
                             sampled_input_data=sampled_input_data, 
                             usetex=False,
-                            save_model=config['model']['save_model'])
+                            save_model_bool=config['model']['save_model'])
 
 if __name__ == "__main__":
     main()
