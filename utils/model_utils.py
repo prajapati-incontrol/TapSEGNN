@@ -324,8 +324,3 @@ def get_eval_results(test_loader: DataLoader,
 
     return results 
 
-###########################################################################################################
-
-def save_model(trained_model: nn.Module, 
-               path: str):
-    torch.save(trained_model.state_dict(), path)

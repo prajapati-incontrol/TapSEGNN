@@ -11,14 +11,42 @@ services:
     stdin_open: true 
     tty: true 
     volumes:
-    - type: bind 
-      source: . 
-      target: /tapsegnn
+      - ./src:/tapsegnn/src 
+      - ./utils:/tapsegnn/utils 
+      - ./notebooks:/tapsegnn/notebooks 
+      - ./config:/tapsegnn/config
+      - ./results:/tapsegnn/results
     working_dir: /tapsegnn 
     environment:
       - PYTHONUNBUFFERED=1
       - MATPLOTLIB_BACKEND=Agg
-    command: ["/bin/bash"] 
+    command: ["python", "main.py"] 
+
+  tapsegnn-dev:
+    build: 
+      context: . 
+      args: 
+        PYTHON_VERSION: 3.11.11 
+    ports: 
+      - "8080:3000"
+    image: tapsegnn-image 
+    container_name: tapsegnn-container\
+    profiles: ["dev"]
+    stdin_open: true 
+    tty: true 
+    volumes:
+      - ./src:/tapsegnn/src 
+      - ./utils:/tapsegnn/utils 
+      - ./notebooks:/tapsegnn/notebooks 
+      - ./config:/tapsegnn/config
+      - ./results:/tapsegnn/results
+    working_dir: /tapsegnn 
+    environment: 
+      - PYTHONUNBUFFERED=1
+      - MATPLOTLIB_BACKEND=Agg
+    command: ["/bin/bash"]
+
+
 
   
 

@@ -1,9 +1,15 @@
 import time
 from datetime import datetime
 import torch 
+import os 
+import sys 
 
-from src.dataset.custom_dataset import NodeEdgeTapDatasetV2
-from src.training.trainer import trainer
+# Get the parent directory
+parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.insert(0, parent_dir)
+
+from dataset.custom_dataset import NodeEdgeTapDatasetV2
+from training.trainer import trainer
 from utils.model_utils import initialize_model, get_eval_results
 from utils.gen_utils import dataset_splitter, get_device, load_config, generate_markdown_report_and_save_model
 from utils.ppnet_utils import initialize_network

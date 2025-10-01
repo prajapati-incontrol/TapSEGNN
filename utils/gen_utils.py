@@ -31,11 +31,19 @@ from sklearn.preprocessing import StandardScaler
 import joblib 
 
 from utils.ppnet_utils import use_stored_pfr, custom_se, check_pf_consistency, initialize_network
-from utils.model_utils import save_model
 
 # Get the parent directory
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, parent_dir)
+
+
+###########################################################################################################
+
+def save_model(trained_model: nn.Module, 
+               path: str):
+    torch.save(trained_model.state_dict(), path)
+
+
 
 def precision_round(number, significant_digits=3):
     power = "{:e}".format(number).split('e')[1]
