@@ -1,10 +1,9 @@
-.PHONY: run dev stop clean 
+.PHONY: test dev stop clean 
 
-run: 
-	docker compose up --build 
-
+test: 
+	docker compose --profile test up --build 
 dev: 
-	docker compose --profile dev up
+	docker compose --profile dev up -d --build
 	docker exec -it tapsegnn-dev-container bash 
 
 stop: 

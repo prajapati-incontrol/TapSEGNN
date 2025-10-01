@@ -7,9 +7,12 @@ services:
     image: tapsegnn-image 
     container_name: tapsegnn-container 
     working_dir: /tapsegnn 
+    profiles:
+      - test
     environment:
       - PYTHONUNBUFFERED=1
       - MATPLOTLIB_BACKEND=Agg
+      - PYTHONDONTWRITEBYTECODE=1
     command: ["python", "src/main.py"] 
 
   tapsegnn-dev:
@@ -17,6 +20,7 @@ services:
       context: . 
       args: 
         PYTHON_VERSION: 3.11.11 
+    entrypoint: []  
     image: tapsegnn-image 
     container_name: tapsegnn-dev-container
     profiles: ["dev"]
@@ -32,6 +36,7 @@ services:
     environment: 
       - PYTHONUNBUFFERED=1
       - MATPLOTLIB_BACKEND=Agg
+      - PYTHONDONTWRITEBYTECODE=1
     command: ["/bin/bash"]
 
 

@@ -417,7 +417,7 @@ def plot_va_predictions(plot_loader: DataLoader, trained_model: nn.Module,
     
 
 
-def write_markdown_report(config: Dict, results: Dict, all_losses: Tuple, report_dir: str):
+def write_markdown_report(config: Dict, results: Dict, all_losses: Tuple, report_dir: str, usetex: bool = True):
     """Write the complete markdown report."""
     with open(f"{report_dir}/report.md", "w") as f:
         f.write("# 📝 Report \n \n")
@@ -429,54 +429,56 @@ def write_markdown_report(config: Dict, results: Dict, all_losses: Tuple, report
         f.write(yaml_config)
         f.write("```\n\n")
 
-        # Load distribution
-        f.write('## Load distribution to sample synthetic power flow results\n\n')
-        f.write("![LoadP box](loadstd_box.png)\n\n")
-        f.write("![LoadQ box](loadstdq_box.png)\n\n")
+        if usetex: 
+            # Load distribution
+            f.write('## Load distribution to sample synthetic power flow results\n\n')
+            f.write("![LoadP box](loadstd_box.png)\n\n")
+            f.write("![LoadQ box](loadstdq_box.png)\n\n")
 
-        # Power Flow Results Distribution
-        f.write('## Power Flow Results Distribution\n\n')
-        f.write(f'The plots below show the variability of all states sampled by adding standard deviation in load.\n\n')
-        f.write("![V box](vmpu_box.png)\n\n")
-        f.write("![A box](adeg_box.png)\n\n")
-        f.write("![P box](pmw_box.png)\n\n")
-        f.write("![Q box](qmvar_box.png)\n\n")
+            # Power Flow Results Distribution
+            f.write('## Power Flow Results Distribution\n\n')
+            f.write(f'The plots below show the variability of all states sampled by adding standard deviation in load.\n\n')
+            f.write("![V box](vmpu_box.png)\n\n")
+            f.write("![A box](adeg_box.png)\n\n")
+            f.write("![P box](pmw_box.png)\n\n")
+            f.write("![Q box](qmvar_box.png)\n\n")
 
-        # Labels distribution
-        f.write('## 📊 Label Distribution \n \n')
-        f.write('### Unscaled \n\n')
-        f.write("![Voltage Magnitude Labelunscale](vm_pu_label_unscaled.png)\n\n")
-        f.write("![Voltage Angle Labelunscale](va_deg_label_unscaled.png)\n\n")
-        
-        f.write('### Scaled (Input to the model) \n\n')
-        f.write("![Voltage Magnitude Label](vm_pu_label.png)\n\n")
-        f.write("![Voltage Angle Label](va_rad_label.png)\n\n")
+            # Labels distribution
+            f.write('## 📊 Label Distribution \n \n')
+            f.write('### Unscaled \n\n')
+            f.write("![Voltage Magnitude Labelunscale](vm_pu_label_unscaled.png)\n\n")
+            f.write("![Voltage Angle Labelunscale](va_deg_label_unscaled.png)\n\n")
+            
+            f.write('### Scaled (Input to the model) \n\n')
+            f.write("![Voltage Magnitude Label](vm_pu_label.png)\n\n")
+            f.write("![Voltage Angle Label](va_rad_label.png)\n\n")
 
-        # Parameter Distribution
-        f.write('## 📊 Parameter Distribution \n \n')
-        f.write("![Line and Trafo Parameter Distribution](param_joint_dist.png)\n\n")
+            # Parameter Distribution
+            f.write('## 📊 Parameter Distribution \n \n')
+            f.write("![Line and Trafo Parameter Distribution](param_joint_dist.png)\n\n")
 
-        # Loss curves
-        f.write("## 📉 Loss curve \n \n")
-        f.write(f"![Training Loss](loss.png)\n\n")
+            # Loss curves
+            f.write("## 📉 Loss curve \n \n")
+            f.write(f"![Training Loss](loss.png)\n\n")
 
-        # Gradient curves 
-        f.write("## 📉 Loss curve \n \n") 
-        f.write(f"![Gradient Curve](gradient_norm.png)\n\n")
+            # Gradient curves 
+            f.write("## 📉 Loss curve \n \n") 
+            f.write(f"![Gradient Curve](gradient_norm.png)\n\n")
 
-        # Results
-        f.write("## 🔎 Results \n\n")
-        for key, value in results.items():
-            f.write(f"- **{key}**: `{value}`\n")
-        f.write(f"\n Test Loss = {all_losses[2]}\n\n")
+            # Predictions vs Labels
+            f.write("### 📊 Predictions vs. Labels Bar Plot \n\n")
+            f.write("![Predictions vs Labels](va_barplot.png)\n\n")
 
-        # Predictions vs Labels
-        f.write("### 📊 Predictions vs. Labels Bar Plot \n\n")
-        f.write("![Predictions vs Labels](va_barplot.png)\n\n")
+            # Predictions vs Labels Joint Distribution
+            f.write('### Predictions vs. Labels Joint Distribution \n\n')
+            f.write("![Pred vs. Labels kde](va_pred_label_joint.png)")
 
-        # Predictions vs Labels Joint Distribution
-        f.write('### Predictions vs. Labels Joint Distribution \n\n')
-        f.write("![Pred vs. Labels kde](va_pred_label_joint.png)")
+        else: 
+            # Results
+            f.write("## 🔎 Results \n\n")
+            for key, value in results.items():
+                f.write(f"- **{key}**: `{value}`\n")
+            f.write(f"\n Test Loss = {all_losses[2]}\n\n")
 
 
 def generate_markdown_report_and_save_model(
@@ -515,12 +517,9 @@ def generate_markdown_report_and_save_model(
         print(f"Saving figures in the report skipped!: {e}")
 
     # Write the markdown report
-    try: 
-        write_markdown_report(config, results, all_losses, report_dir)
-    except Exception as e: 
-        print(f"Writing results in the report skipped: {e}")
-        
+    write_markdown_report(config, results, all_losses, report_dir, usetex=usetex)
     print(f"Report generated successfully in {report_dir}")
+    
 
 #####################################################################################
 def generate_markdown_report_GAN_and_save_model(yaml_config: Dict, 
