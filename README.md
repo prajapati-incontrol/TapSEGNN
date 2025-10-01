@@ -18,30 +18,40 @@ Checkout my thesis at: https://resolver.tudelft.nl/uuid:ed42f877-387a-481d-8a21-
 ![Dataset Generation Summary](graphics/FIG_dataset_generation_summary.jpeg)
 
 
-### Installation
+## Setup
 
-1. Clone this repository:
+
+
+### Option 1: Using Virtual Environment 
 
 ```bash
+# clone the repository 
 git clone https://github.com/prajapati-incontrol/TapSEGNN.git
 cd TapSEGNN
-```
 
-
-2. Set up a virtual environment (recommended):
-
-
-```bash
-python -m venv venv
+# activate the virtual environment
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-```
 
-3. Install dependencies:
-
-```bash
+# install the dependencies
 pip install -r requirements.txt
 ```
 ---
+
+### Option 2: Use Docker Containers
+
+```bash
+# clone the repository 
+git clone https://github.com/prajapati-incontrol/TapSEGNN.git
+cd TapSEGNN
+
+# With the docker engine running, build and run the container 
+make test
+```
+
+```bash
+# if you want to develop the codebase 
+make dev 
+```
 
 ## 📁 Project Structure
 
@@ -51,7 +61,8 @@ TapSEGNN/
    ├── config.yaml                       # Primary configuration for state estimation experiments
    ├── config_gan.yaml                   # Configuration parameters for GAN-based models and training
 ├── graphics/                            # All graphics like mathematical animations and visualisations using Manim
-├── results/                             # Experiment outputs and analysis
+├── notebooks/                           # Notebook for experimenting 
+├── results/                             # (Auto-generated) Experiment outputs and analysis
    │                                     # Auto-generated Jupyter notebooks documenting each experiment run
    │                                     # Includes configuration, performance metrics and plots
 ├── src/                                 # Source files
@@ -83,15 +94,6 @@ TapSEGNN/
 └── README.md                            # Project Documentation
                                          
 ```
-
-_Note: Due to the use of private MV (Medium Voltage) network data, detailed analysis notebooks on open-source networks are currently being prepared and will be posted ASAP._
-
-## The Way Forward 
-
-1. Add a custom `collate` function to optimise the computation of transformer readout layers instead of forward pass in `src/model/graph_models.py`.
-2. Speed up the calculation of Hodge-Laplacians in `utils/gen_utils.py`.
-3. (Bit ambitious) Distributed computation using PyTorch Geometric algorithms. 
-
 
 
 ## Contributing
