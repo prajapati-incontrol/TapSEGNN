@@ -18,7 +18,7 @@ services:
       args: 
         PYTHON_VERSION: 3.11.11 
     image: tapsegnn-image 
-    container_name: tapsegnn-container\
+    container_name: tapsegnn-dev-container
     profiles: ["dev"]
     stdin_open: true 
     tty: true 

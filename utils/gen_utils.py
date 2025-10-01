@@ -13,6 +13,8 @@ from torch.utils.data import random_split
 from torch_geometric.loader import DataLoader 
 from torch.utils.data import DataLoader as torch_loader
 import torch.nn as nn
+import matplotlib 
+matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
 import pylab
 import time 
@@ -36,6 +38,12 @@ from utils.ppnet_utils import use_stored_pfr, custom_se, check_pf_consistency, i
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 sys.path.insert(0, parent_dir)
 
+# Disable LaTeX rendering
+plt.rcParams.update({
+    'text.usetex': False,
+    'mathtext.fontset': 'cm',
+    'font.family': 'sans-serif'
+})
 
 ###########################################################################################################
 
@@ -67,8 +75,12 @@ def setup_plotting_style(usetex: bool = False):
 
 def save_figure(fig, filename_base, report_dir):
     """Save a figure in both PDF and PNG formats."""
-    plt.savefig(f"{report_dir}/{filename_base}.pdf", dpi=300)
-    plt.savefig(f"{report_dir}/{filename_base}.png", dpi=300)
+    try: 
+        plt.savefig(f"{report_dir}/{filename_base}.pdf", dpi=300)
+        plt.savefig(f"{report_dir}/{filename_base}.png", dpi=300)
+    except Exception as e: 
+        print(f"Saving pdf/png skipped!: {e}")
+        
 
 
 def plot_boxplot(data_df, title, xlabel, ylabel, xtick_rotation=90, figsize=(10, 6), fontsize: int = 20):
@@ -228,13 +240,17 @@ def generate_branch_parameters_plot(sampled_input_data: Dict, report_dir: str):
     branch_param_df = edge_input_features_df[[1, 2, 3, 4]]
     branch_param_df.columns = ['r_pu', 'x_pu', 'g_pu', 'b_pu']
     
-    # Creating pairplot
-    pair_plot = sns.pairplot(branch_param_df, diag_kind='kde')
-    plt.tight_layout()
+    
     
     # Save pairplot
-    pair_plot.savefig(f"{report_dir}/param_joint_dist.pdf", dpi=300)
-    pair_plot.savefig(f"{report_dir}/param_joint_dist.png", dpi=300)
+    try: 
+        # Creating pairplot
+        pair_plot = sns.pairplot(branch_param_df, diag_kind='kde')
+        plt.tight_layout()
+        pair_plot.savefig(f"{report_dir}/param_joint_dist.pdf", dpi=300)
+        pair_plot.savefig(f"{report_dir}/param_joint_dist.png", dpi=300)
+    except Exception as e: 
+        print(f"Saving pairplot failed! {e}")
 
 
 def plot_loss_curves(all_losses: Tuple, config: Dict, report_dir: str, fontsize: int = 20):
@@ -486,19 +502,24 @@ def generate_markdown_report_and_save_model(
     
     # Set up plotting style
     setup_plotting_style(usetex=usetex)
-    
-    # Generate all visualizations
-    generate_load_boxplots(sampled_input_data, report_dir)
-    generate_bus_boxplots(sampled_input_data, report_dir)
-    generate_label_distributions(sampled_input_data, report_dir)
-    generate_branch_parameters_plot(sampled_input_data, report_dir)
-    plot_loss_curves(all_losses, config, report_dir)
-    plot_gradient_norm_over_time(all_losses, config, report_dir)
-    plot_va_predictions(plot_loader, trained_model, sampled_input_data, report_dir)
-    
+    try: 
+        # Generate all visualizations
+        generate_load_boxplots(sampled_input_data, report_dir)
+        generate_bus_boxplots(sampled_input_data, report_dir)
+        generate_label_distributions(sampled_input_data, report_dir)
+        generate_branch_parameters_plot(sampled_input_data, report_dir)
+        plot_loss_curves(all_losses, config, report_dir)
+        plot_gradient_norm_over_time(all_losses, config, report_dir)
+        plot_va_predictions(plot_loader, trained_model, sampled_input_data, report_dir)
+    except Exception as e: 
+        print(f"Saving figures in the report skipped!: {e}")
+
     # Write the markdown report
-    write_markdown_report(config, results, all_losses, report_dir)
-    
+    try: 
+        write_markdown_report(config, results, all_losses, report_dir)
+    except Exception as e: 
+        print(f"Writing results in the report skipped: {e}")
+        
     print(f"Report generated successfully in {report_dir}")
 
 #####################################################################################
@@ -616,12 +637,15 @@ def generate_markdown_report_GAN_and_save_model(yaml_config: Dict,
     plt.subplots_adjust(top=0.92)
     
     # Save training dynamics plot
-    plt.savefig(f"{report_dir}/FIG_training_dynamics.pdf",
-                dpi=300, bbox_inches='tight',
-                facecolor='white', edgecolor='none')
-    plt.savefig(f"{report_dir}/FIG_training_dynamics.png",
-                dpi=300, bbox_inches='tight',
-                facecolor='white', edgecolor='none')
+    try: 
+        plt.savefig(f"{report_dir}/FIG_training_dynamics.pdf",
+                    dpi=300, bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+        plt.savefig(f"{report_dir}/FIG_training_dynamics.png",
+                    dpi=300, bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+    except Exception as e: 
+        print(f"Saving training dynamics plot failed! {e}")
     plt.close()
 
     # Generate loss difference plot (convergence analysis)
@@ -639,12 +663,15 @@ def generate_markdown_report_GAN_and_save_model(yaml_config: Dict,
     ax_cp.grid(True, alpha=0.3)
     
     plt.tight_layout()
-    plt.savefig(f"{report_dir}/FIG_loss_difference.pdf",
-                dpi=300, bbox_inches='tight',
-                facecolor='white', edgecolor='none')
-    plt.savefig(f"{report_dir}/FIG_loss_difference.png",
-                dpi=300, bbox_inches='tight',
-                facecolor='white', edgecolor='none')
+    try: 
+        plt.savefig(f"{report_dir}/FIG_loss_difference.pdf",
+                    dpi=300, bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+        plt.savefig(f"{report_dir}/FIG_loss_difference.png",
+                    dpi=300, bbox_inches='tight',
+                    facecolor='white', edgecolor='none')
+    except Exception as e: 
+        print(f"Saving loss difference plots failed! {e}")
     plt.close()
     
 
@@ -733,10 +760,13 @@ def generate_markdown_report_GAN_and_save_model(yaml_config: Dict,
         ax.legend(title='Voltage Source', title_fontsize=12, fontsize=12)
         ax.grid(True, alpha=0.3)
 
-        plt.savefig(report_dir + f'/FIG_GAN_Simulated_vs_Generated_V.pdf', dpi=300, bbox_inches='tight',
-                    facecolor='white', edgecolor='none')
-        plt.savefig(report_dir + f'/FIG_GAN_Simulated_vs_Generated_V.png', dpi=300, bbox_inches='tight',
-                    facecolor='white', edgecolor='none')
+        try: 
+            plt.savefig(report_dir + f'/FIG_GAN_Simulated_vs_Generated_V.pdf', dpi=300, bbox_inches='tight',
+                        facecolor='white', edgecolor='none')
+            plt.savefig(report_dir + f'/FIG_GAN_Simulated_vs_Generated_V.png', dpi=300, bbox_inches='tight',
+                        facecolor='white', edgecolor='none')
+        except Exception as e: 
+            print(f"Saving GAN simulated vs. generated vm_pu failed! {e}")
         plt.close()
         
     except Exception as e: 
@@ -1635,10 +1665,13 @@ def plot_real_v_generated_linebar(report_dir: str,
     plt.tight_layout()
 
     # Save the figure with high quality
-    plt.savefig(report_dir + f'/FIG_GAN_PVPedge_lineplot.png', dpi=300, bbox_inches='tight', 
-                facecolor='white', edgecolor='none')
-    plt.savefig(report_dir + f'/FIG_GAN_PVPedge_lineplot.pdf', bbox_inches='tight', 
-                facecolor='white', edgecolor='none')
+    try: 
+        plt.savefig(report_dir + f'/FIG_GAN_PVPedge_lineplot.png', dpi=300, bbox_inches='tight', 
+                    facecolor='white', edgecolor='none')
+        plt.savefig(report_dir + f'/FIG_GAN_PVPedge_lineplot.pdf', bbox_inches='tight', 
+                    facecolor='white', edgecolor='none')
+    except Exception as e: 
+        print(f"Saving GAN PVEdge line plot failed! {e}")
 
     plt.close()
     
