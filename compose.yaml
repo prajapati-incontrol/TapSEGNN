@@ -10,7 +10,7 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - MATPLOTLIB_BACKEND=Agg
-    command: ["python", "main.py"] 
+    command: ["python", "src/main.py"] 
 
   tapsegnn-dev:
     build: 
