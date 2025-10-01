@@ -4,18 +4,8 @@ services:
       context: . 
       args: 
         PYTHON_VERSION: 3.11.11 
-    ports: 
-      - "8080:3000"
     image: tapsegnn-image 
     container_name: tapsegnn-container 
-    stdin_open: true 
-    tty: true 
-    volumes:
-      - ./src:/tapsegnn/src 
-      - ./utils:/tapsegnn/utils 
-      - ./notebooks:/tapsegnn/notebooks 
-      - ./config:/tapsegnn/config
-      - ./results:/tapsegnn/results
     working_dir: /tapsegnn 
     environment:
       - PYTHONUNBUFFERED=1
@@ -27,8 +17,6 @@ services:
       context: . 
       args: 
         PYTHON_VERSION: 3.11.11 
-    ports: 
-      - "8080:3000"
     image: tapsegnn-image 
     container_name: tapsegnn-container\
     profiles: ["dev"]
