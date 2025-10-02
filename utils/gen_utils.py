@@ -754,9 +754,10 @@ def generate_markdown_report_GAN_and_save_model(yaml_config: Dict,
                 hue='Type', marker='o', markersize=6, linewidth=2.5, ax=ax)
         # Customize the plot
         ax.set_xlabel('Sample Index', fontsize=14)
-        ax.set_ylabel('Voltage Magnitude (p.u.)', fontsize=14)
-        ax.set_title('Power Flow Consistency Check: Simulated vs Generated Voltages', fontsize=16, pad=20)
-        ax.legend(title='Voltage Source', title_fontsize=12, fontsize=12)
+        ax.set_ylabel('Voltage Magnitude [p.u.]', fontsize=14)
+        ax.set_ylim(0.9,1.1)
+        # ax.set_title('Power Flow Consistency Check: Simulated vs Generated Voltages', fontsize=16, pad=20)
+        ax.legend(fontsize=12)
         ax.grid(True, alpha=0.3)
 
         try: 

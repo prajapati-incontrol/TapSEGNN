@@ -435,7 +435,8 @@ def train_epoch_gan(model_G: nn.Module,
                     optimizer_D: Optimizer, 
                     disc_iter: int,
                     gen_iter: int,
-                    feature_matching: bool, 
+                    feature_matching: bool = False,
+                    label_smoothing: bool = False, 
                     device: Literal['cpu','cuda','mps'] = 'cpu') -> Tuple: 
     model_G.train()
     model_D.train()
@@ -458,8 +459,12 @@ def train_epoch_gan(model_G: nn.Module,
 
 
             # LABEL SMOOTHING: 
-            real_labels = torch.ones_like(real_batch.y) * 0.9 
-            fake_labels = torch.zeros_like(fake_batch[0].y) + 0.1
+            if label_smoothing: 
+                real_labels = torch.ones_like(real_batch.y) * 0.9
+                fake_labels = torch.zeros_like(fake_batch[0].y) + 0.1
+            else: 
+                real_labels = torch.ones_like(real_batch.y) 
+                fake_labels = torch.zeros_like(fake_batch[0].y) 
 
             # discriminator output logit for real samplesa as inputs
             D_real_output = model_D(real_batch.x, real_batch.edge_index, real_batch.edge_attr, real_batch.batch)
@@ -505,7 +510,7 @@ def train_epoch_gan(model_G: nn.Module,
                 err_std_x = torch.linalg.vector_norm(real_batch.x.std(dim=0) - fake_x.std(dim=0))
                 err_mean_x1 = torch.linalg.vector_norm(real_batch.edge_attr.mean(dim=0) - fake_edge_attr.mean(dim=0))
                 err_std_x1 = torch.linalg.vector_norm(real_batch.edge_attr.std(dim=0) - fake_edge_attr.std(dim=0))
-                gen_train_loss += 10 * ( (err_mean_x + err_mean_x1) + err_std_x + err_std_x1 )
+                gen_train_loss += (err_mean_x + err_mean_x1) + 10 * (err_std_x + err_std_x1)
 
             gen_train_loss.backward()
             optimizer_G.step()
@@ -519,7 +524,8 @@ def val_epoch_gan(model_G: nn.Module,
                     model_D: nn.Module, 
                     loader_G: DataLoader, 
                     loader_D: DataLoader, 
-                    feature_matching: bool, 
+                    feature_matching: bool = False,
+                    label_smoothing: bool = False, 
                     device: Literal['cpu','cuda','mps'] = 'cpu') -> Tuple: 
 
     model_G.eval()
@@ -580,7 +586,7 @@ def val_epoch_gan(model_G: nn.Module,
             err_std_x = torch.linalg.vector_norm(real_batch.x.std(dim=0) - fake_x.std(dim=0))
             err_mean_x1 = torch.linalg.vector_norm(real_batch.edge_attr.mean(dim=0) - fake_edge_attr.mean(dim=0))
             err_std_x1 = torch.linalg.vector_norm(real_batch.edge_attr.std(dim=0) - fake_edge_attr.std(dim=0))
-            gen_train_loss += 10 * ( (err_mean_x + err_mean_x1) + err_std_x + err_std_x1 ) 
+            gen_train_loss += (err_mean_x + err_mean_x1) + 10 * (err_std_x + err_std_x1)  
 
         gen_loss += gen_train_loss.item()
     
@@ -599,7 +605,8 @@ def train_GAN(model_G: nn.Module,
               num_epoch: int, 
               disc_iter: int, 
               gen_iter: int, 
-              feature_matching: bool = True, 
+              feature_matching: bool = False,
+              label_smoothing: bool = False,
               device: Literal['cpu','cuda','mps'] = 'cpu'):
     
     train_loader_G, val_loader_G, test_loader_G = all_loader_G[0], all_loader_G[1], all_loader_G[2]
@@ -621,13 +628,15 @@ def train_GAN(model_G: nn.Module,
                                                                     disc_iter = disc_iter,
                                                                     gen_iter=gen_iter,
                                                                     feature_matching=feature_matching,
+                                                                    label_smoothing=label_smoothing,
                                                                     device = device)
         
         val_d_loss, val_d_accuracy, val_g_loss = val_epoch_gan(model_G = model_G, 
                                                             model_D = model_D, 
                                                             loader_G = val_loader_G, 
                                                             loader_D = val_loader_D,
-                                                            feature_matching=feature_matching, 
+                                                            feature_matching=feature_matching,
+                                                            label_smoothing=label_smoothing, 
                                                             device = device)
         
         train_d_losses.append(train_d_loss)
@@ -662,7 +671,8 @@ def train_GAN(model_G: nn.Module,
                                                             model_D = model_D, 
                                                             loader_G = test_loader_G, 
                                                             loader_D = test_loader_D,
-                                                            feature_matching=feature_matching, 
+                                                            feature_matching=feature_matching,
+                                                            label_smoothing=label_smoothing, 
                                                             device = device)
 
     print(f"Test Performance: d_loss: {test_d_loss:.3e}, d_accuracy: {test_d_accuracy:.2f}, g_loss: {test_g_loss:.3e}")

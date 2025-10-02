@@ -38,7 +38,7 @@ training_G:
 
 # discriminator model config 
 model_D: 
-  hidden_channel: 64
+  hidden_channel: 32
   out_channel: 32
 
 # discriminator training config 
@@ -51,7 +51,8 @@ training_D:
 training_GAN: 
   num_epoch: 50
   disc_iter: 1
-  gen_iter: 2
+  gen_iter: 1
   feature_matching: True
+  label_smoothing: False
   early_stopping: False
   val_patience: 5 
