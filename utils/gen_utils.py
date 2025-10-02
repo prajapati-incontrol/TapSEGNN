@@ -1605,7 +1605,7 @@ def plot_real_v_generated_linebar(report_dir: str,
     plt.rcParams['figure.figsize'] = (15, 12)
 
     # Create subplots
-    fig, axes = plt.subplots(1, 3, figsize=(18, 12))
+    fig, axes = plt.subplots(3, 1, figsize=(18, 12))
     fig.suptitle(f'Real vs Generated Data Comparison (Buses: {num_buses})', 
                  fontsize=16, fontweight='bold')
 

@@ -33,7 +33,7 @@ model_G:
 # generator training config 
 training_G: 
   lr: 0.0001
-  weight_decay: 1e-5
+  weight_decay: 0.00001
   schedular_min_lr: 0.00001
 
 # discriminator model config 
@@ -43,15 +43,15 @@ model_D:
 
 # discriminator training config 
 training_D: 
-  lr: 0.000001
-  weight_decay: 1e-5
+  lr: 0.00001
+  weight_decay: 0.00001
   schedular_min_lr: 0.00001
 
 # training min-max gan 
 training_GAN: 
-  num_epoch: 100
-  disc_iter: 5
-  gen_iter: 1
+  num_epoch: 50
+  disc_iter: 1
+  gen_iter: 2
   feature_matching: True
   early_stopping: False
   val_patience: 5 

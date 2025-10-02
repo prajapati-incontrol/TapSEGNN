@@ -455,23 +455,31 @@ def train_epoch_gan(model_G: nn.Module,
         # Train discriminator 
         for _ in range(disc_iter): 
             optimizer_D.zero_grad()
+
+
+            # LABEL SMOOTHING: 
+            real_labels = torch.ones_like(real_batch.y) * 0.9 
+            fake_labels = torch.zeros_like(fake_batch[0].y) + 0.1
+
             # discriminator output logit for real samplesa as inputs
             D_real_output = model_D(real_batch.x, real_batch.edge_index, real_batch.edge_attr, real_batch.batch)
             
             # loss of identifying real samples 
-            real_loss = criterion(D_real_output, real_batch.y.to(device))
+            real_loss = criterion(D_real_output, real_labels.to(device))
 
             # accuracy of identifying real samples as real
             D_real_output_binary = (torch.sigmoid(D_real_output) > 0.5).float()
             correct += (D_real_output_binary == real_batch.y.to(device)).sum().item()
             total += real_batch.y.shape[0]
             
+            # generate once, use multiple times
+            fake_x, fake_edge_attr = model_G(fake_batch)
 
             # discriminator output logit for fake samples as inputs 
-            D_fake_output = model_D(model_G(fake_batch)[0], fake_batch[0].edge_index, model_G(fake_batch)[1], fake_batch[0].batch)
+            D_fake_output = model_D(fake_x.detach(), fake_batch[0].edge_index, fake_edge_attr.detach(), fake_batch[0].batch)
 
             # loss of identifying fake samples 
-            fake_loss = criterion(D_fake_output, fake_batch[0].y.to(device))
+            fake_loss = criterion(D_fake_output, fake_labels.to(device))
 
             # accuracy of identifying fake samples as fake 
             D_fake_output_binary = (torch.sigmoid(D_fake_output) > 0.5).float()
@@ -480,14 +488,6 @@ def train_epoch_gan(model_G: nn.Module,
 
             dis_net_loss = real_loss + fake_loss 
 
-            # if feature_matching is True 
-            if feature_matching:
-                err_mean_x = torch.linalg.vector_norm(real_batch.x.mean(dim=0) - model_G(fake_batch)[0].mean(dim=0))
-                err_std_x = torch.linalg.vector_norm(real_batch.x.std(dim=0) - model_G(fake_batch)[0].std(dim=0))
-                err_mean_x1 = torch.linalg.vector_norm(real_batch.edge_attr.mean(dim=0) - model_G(fake_batch)[1].mean(dim=0))
-                err_std_x1 = torch.linalg.vector_norm(real_batch.edge_attr.std(dim=0) - model_G(fake_batch)[1].std(dim=0))
-                dis_net_loss += (err_mean_x + err_mean_x1) + err_std_x + err_std_x1
-
             dis_net_loss.backward()
             optimizer_D.step()
             dis_loss += dis_net_loss.item()
@@ -495,8 +495,17 @@ def train_epoch_gan(model_G: nn.Module,
         for _ in range(gen_iter):
             # Train the generator to fool the discriminator 
             optimizer_G.zero_grad()
-            G_D_fake_output = model_D(model_G(fake_batch)[0], fake_batch[0].edge_index, model_G(fake_batch)[1], fake_batch[0].batch)
+            fake_x, fake_edge_attr = model_G(fake_batch)
+            G_D_fake_output = model_D(fake_x, fake_batch[0].edge_index, fake_edge_attr, fake_batch[0].batch)
             gen_train_loss = criterion(G_D_fake_output, fake_batch[0].y_fool.to(device))
+
+            # Add feature matching to generator loss
+            if feature_matching:
+                err_mean_x = torch.linalg.vector_norm(real_batch.x.mean(dim=0) - fake_x.mean(dim=0))
+                err_std_x = torch.linalg.vector_norm(real_batch.x.std(dim=0) - fake_x.std(dim=0))
+                err_mean_x1 = torch.linalg.vector_norm(real_batch.edge_attr.mean(dim=0) - fake_edge_attr.mean(dim=0))
+                err_std_x1 = torch.linalg.vector_norm(real_batch.edge_attr.std(dim=0) - fake_edge_attr.std(dim=0))
+                gen_train_loss += 10 * ( (err_mean_x + err_mean_x1) + err_std_x + err_std_x1 )
 
             gen_train_loss.backward()
             optimizer_G.step()
@@ -541,8 +550,12 @@ def val_epoch_gan(model_G: nn.Module,
         correct += (D_real_output_binary == real_batch.y.to(device)).sum().item()
         total += real_batch.y.shape[0]
 
+        # Generate once, use multiple times
+        fake_x, fake_edge_attr = model_G(fake_batch)
+
+
         # discriminator output logit for fake samples as inputs 
-        D_fake_output = model_D(model_G(fake_batch)[0], fake_batch[0].edge_index, model_G(fake_batch)[1], fake_batch[0].batch)
+        D_fake_output = model_D(fake_x, fake_batch[0].edge_index, fake_edge_attr, fake_batch[0].batch)
 
         # loss of identifying fake samples 
         fake_loss = criterion(D_fake_output, fake_batch[0].y.to(device))
@@ -554,19 +567,20 @@ def val_epoch_gan(model_G: nn.Module,
 
         dis_net_loss = real_loss + fake_loss 
         
-        # if feature_matching is True 
-        if feature_matching:
-                err_mean_x = torch.linalg.vector_norm(real_batch.x.mean(dim=0) - model_G(fake_batch)[0].mean(dim=0))
-                err_std_x = torch.linalg.vector_norm(real_batch.x.std(dim=0) - model_G(fake_batch)[0].std(dim=0))
-                err_mean_x1 = torch.linalg.vector_norm(real_batch.edge_attr.mean(dim=0) - model_G(fake_batch)[1].mean(dim=0))
-                err_std_x1 = torch.linalg.vector_norm(real_batch.edge_attr.std(dim=0) - model_G(fake_batch)[1].std(dim=0))
-                dis_net_loss += (err_mean_x + err_mean_x1) + err_std_x + err_std_x1
-        
         dis_loss += dis_net_loss.item()
 
-        # validate the generator to fool the discriminator 
-        G_D_fake_output = model_D(model_G(fake_batch)[0], fake_batch[0].edge_index, model_G(fake_batch)[1], fake_batch[0].batch)
+        # validate the generator to fool the discriminator
+        fake_x, fake_edge_attr = model_G(fake_batch)
+        G_D_fake_output = model_D(fake_x, fake_batch[0].edge_index, fake_edge_attr, fake_batch[0].batch)
         gen_train_loss = criterion(G_D_fake_output, fake_batch[0].y_fool.to(device))
+
+        # Add feature matching to generator loss
+        if feature_matching:
+            err_mean_x = torch.linalg.vector_norm(real_batch.x.mean(dim=0) - fake_x.mean(dim=0))
+            err_std_x = torch.linalg.vector_norm(real_batch.x.std(dim=0) - fake_x.std(dim=0))
+            err_mean_x1 = torch.linalg.vector_norm(real_batch.edge_attr.mean(dim=0) - fake_edge_attr.mean(dim=0))
+            err_std_x1 = torch.linalg.vector_norm(real_batch.edge_attr.std(dim=0) - fake_edge_attr.std(dim=0))
+            gen_train_loss += 10 * ( (err_mean_x + err_mean_x1) + err_std_x + err_std_x1 ) 
 
         gen_loss += gen_train_loss.item()
     
