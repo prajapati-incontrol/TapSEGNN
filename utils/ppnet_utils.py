@@ -171,6 +171,45 @@ def get_net_4bus():
 
     return net
 
+def get_netA_mask(net: pp.pandapowerNet, 
+                     node_mask: np.array, 
+                     edge_mask: np.array) -> Tuple: 
+    """
+    Puts 1 where measurements are available for node and edge features. 
+    Keeps 1 by default for edge-features that are line/trafo parameters.
+    """
+    v_at_meas = np.array([0,1,2,3,5,7,11,17,22])
+
+    node_mask[:, v_at_meas, :] = 1 # accounts for both v and p measurements 
+    
+    # meas at buses 
+    pq_flow_meas = np.array([5,7,11,17,22])
+
+    for iline, line in net.line.iterrows():
+        from_bus = int(line.from_bus)
+        to_bus = int(line.to_bus)
+
+        if to_bus in pq_flow_meas: 
+            edge_mask[:, iline, 0] = 1 
+        
+        if from_bus in pq_flow_meas: 
+            edge_mask[:, iline, 0] = 1
+
+    num_lines = len(net.line)
+
+    for itrafo, trafo in net.trafo.iterrows(): 
+        hv_bus = int(trafo.hv_bus)
+        lv_bus = int(trafo.lv_bus)
+
+        if hv_bus in pq_flow_meas: 
+            edge_mask[:, num_lines + itrafo, 0] = 1 
+        
+        if lv_bus in pq_flow_meas: 
+            edge_mask[:, num_lines + itrafo, 0] = 1
+
+    
+    return node_mask, edge_mask
+
 #####################################################################################
 def get_net_A(): 
 

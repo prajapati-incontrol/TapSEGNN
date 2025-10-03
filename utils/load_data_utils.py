@@ -23,7 +23,7 @@ np.seterr(all='raise')
 
 
 from utils.gen_utils import get_array_mask, tensor_any_nan, get_edge_index_from_ppnet, scale_numeric_columns, inverse_scale
-from utils.ppnet_utils import add_branch_parameters, get_positive_power_flow, get_power_flow_edge_index
+from utils.ppnet_utils import add_branch_parameters, get_positive_power_flow, get_power_flow_edge_index, get_netA_mask
 
 #########################################################################################################
 
@@ -466,6 +466,13 @@ def load_sampled_input_data(sc_type: int,
                 print(f"Number of V, P measurements {nnz_node_mask} out of {node_mask[0,:,:].numel()}\n")
                 print(f"Number of P_to, Q_to, P_from, Q_from measurements {nnz_edge_mask} out of {edge_mask[0,:,0].numel()}\n")
 
+                # sparsity of the node and edge features 
+                node_feat_sparsity = np.count_nonzero(sampled_input_data['node_mask']) / sampled_input_data['node_mask'].numpy().size
+                pflow_edge_sparsity = np.count_nonzero(sampled_input_data['edge_mask'][:,:,0]) / sampled_input_data['edge_mask'][:,:,0].numpy().size
+
+                print(f"Sparsity of PV measurements at buses = {node_feat_sparsity:.1f}%")
+                print(f"Sparsity of P+ measurements at branches = {pflow_edge_sparsity:.1f}")
+
                 return sampled_input_data
                 
             case _: 
@@ -637,15 +644,19 @@ def load_sc_9(net: pp.pandapowerNet,
             node_input_features[iperm, :, :] = np.nan  # Assign NaNs to indicate failure
 
     # calculate the mask for available measurements at node and edge input features 
-    # account for real measurements 
     node_mask = np.zeros((num_samples, num_buses, num_node_features))
     edge_mask = np.zeros((num_samples, num_edges, num_edge_features))
 
-    sparsity_prob = 0.5
-    node_mask = get_array_mask(node_input_features, sparsity_prob=sparsity_prob)
-    edge_mask[:,:,0] = get_array_mask(edge_mask[:,:,0], sparsity_prob=0.5)
+    if net.name == 'net_A':
+        # embed real locations
+        # account for real measurements 
+        node_mask, edge_mask = get_netA_mask(net, node_mask, edge_mask)
+    else: 
+        sparsity_prob = 0.5
+        node_mask = get_array_mask(node_input_features, sparsity_prob=sparsity_prob)
+        edge_mask[:,:,0] = get_array_mask(edge_mask[:,:,0], sparsity_prob=sparsity_prob)
+        edge_mask[:,:,1:] = 1 # parameters are considered known.
 
-    edge_mask[:,:,1:] = 1 # parameters are considered known.
     if noise: 
         edge_input_features_noisy = copy.deepcopy(edge_input_features)
         node_input_features_noisy = copy.deepcopy(node_input_features)

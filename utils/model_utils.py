@@ -7,6 +7,7 @@ import sys
 import os 
 import numpy as np 
 from sklearn.preprocessing import StandardScaler
+import copy 
 
 # Get the parent directory
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
@@ -324,3 +325,22 @@ def get_eval_results(test_loader: DataLoader,
 
     return results 
 
+##############################################################################################################################
+
+def impute_dataset_with_model_G(model_G: nn.Module, 
+                                dataset_w_mm: Dataset, 
+                                sampled_input_data: Dict):     
+    loader = DataLoader(dataset_w_mm, batch_size=1, shuffle=False)
+    cp_sampled_input_data = copy.deepcopy(sampled_input_data)
+    cp_sampled_input_data['node_input_feat_mm'] = torch.zeros_like(cp_sampled_input_data['node_input_feat'])
+    cp_sampled_input_data['edge_input_feat_mm'] = torch.zeros_like(cp_sampled_input_data['edge_input_feat']) 
+
+    # forward pass of model_G 
+    for batch_id, batch in enumerate(loader): 
+        with torch.no_grad(): 
+            scaled_gen_pv, scaled_gen_p_edge = model_G(batch)
+            # REPLACE (lazy implementation) the node and edge input features for TapSEGNN
+            cp_sampled_input_data['node_input_feat_mm'][batch_id] = scaled_gen_pv
+            cp_sampled_input_data['edge_input_feat_mm'][batch_id,:,0] = scaled_gen_p_edge 
+            break
+    return cp_sampled_input_data

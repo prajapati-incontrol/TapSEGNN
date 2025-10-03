@@ -62,7 +62,7 @@ def precision_round(number, significant_digits=3):
 def create_report_directory(current_time: str) -> str:
     """Create and return the path to a new directory for report output."""
     # current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-    report_dir = f"{parent_dir}/results/{current_time}/"
+    report_dir = f"{parent_dir}/results/{current_time}/TapSEGNN"
     os.makedirs(report_dir, exist_ok=True)
     return report_dir
 
@@ -522,16 +522,15 @@ def generate_markdown_report_and_save_model(
     
 
 #####################################################################################
-def generate_markdown_report_GAN_and_save_model(yaml_config: Dict, 
+def generate_markdown_report_GAN_and_save_model(report_dir: str,
+                                 yaml_config: Dict, 
                                  train_g_losses: List, 
                                  train_d_losses: List, 
                                  train_d_accuracies: List, 
-                                 parent_dir: str, 
                                  test_loader_G: DataLoader, 
                                  model_G: nn.Module, 
                                  sampled_input_data_G: Dict, 
                                  return_data: bool = False,
-                                 seed: int = 0,
                                  usetex: bool = False,
                                  save_model_bool: bool = False):
     """
@@ -549,10 +548,6 @@ def generate_markdown_report_GAN_and_save_model(yaml_config: Dict,
     Returns:
         str: Path to the generated report directory
     """ 
-
-    current_time = datetime.now().strftime("%Y%m%d_%H%M%S")
-    report_dir = f"{parent_dir}/results/GAN_only/{current_time}_{seed}"
-
     os.makedirs(report_dir, exist_ok=True)
 
     # save model 
