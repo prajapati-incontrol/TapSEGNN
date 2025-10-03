@@ -134,6 +134,7 @@ def main():
                                                                 model_G=model_G, 
                                                                 sampled_input_data_G=sampled_input_data_G, 
                                                                 return_data=True,
+                                                                save_model_bool=True,
                                                             )
     
     print("\n=========================== Report saved. ===========================\n")
@@ -209,7 +210,9 @@ def main():
                             results=results, 
                             plot_loader=plot_loader, 
                             trained_model=model, 
-                            sampled_input_data=sampled_input_data_G)
+                            sampled_input_data=sampled_input_data_G, 
+                            usetex=True, 
+                            save_model_bool=True)
 
     end_time_main = time.perf_counter()
     print(f"\n=========================== Main run complete! Took {end_time_main - start_time_main} seconds. ===========================\n")

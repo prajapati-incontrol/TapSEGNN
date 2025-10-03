@@ -511,7 +511,7 @@ def generate_markdown_report_and_save_model(
         generate_label_distributions(sampled_input_data, report_dir)
         generate_branch_parameters_plot(sampled_input_data, report_dir)
         plot_loss_curves(all_losses, config, report_dir)
-        plot_gradient_norm_over_time(all_losses, config, report_dir)
+        # plot_gradient_norm_over_time(all_losses, config, report_dir)
         plot_va_predictions(plot_loader, trained_model, sampled_input_data, report_dir)
     except Exception as e: 
         print(f"Saving figures in the report skipped!: {e}")

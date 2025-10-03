@@ -650,6 +650,7 @@ def load_sc_9(net: pp.pandapowerNet,
     if net.name == 'net_A':
         # embed real locations
         # account for real measurements 
+        print("\n Embedding real measurement locations for Net-A\n")
         node_mask, edge_mask = get_netA_mask(net, node_mask, edge_mask)
     else: 
         sparsity_prob = 0.5
