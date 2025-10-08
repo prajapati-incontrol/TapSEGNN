@@ -230,7 +230,8 @@ def get_eval_results(test_loader: DataLoader,
                      scaler: StandardScaler,
                      device: Literal['cpu','mps','cuda'] = 'cpu', 
                      fcnn: bool = False,
-                     num_nodes: int = None) -> Dict: 
+                     num_nodes: int = None, 
+                     output_pred_va: bool = False) -> Dict: 
     """
     This function returns various performance metrics of the trained model. 
     Available metrics: 
@@ -244,7 +245,7 @@ def get_eval_results(test_loader: DataLoader,
     For classification: 
             Accuracy per batch 
     """
-    offset = 10.
+    offset = 0.
     batch = next(iter(test_loader))
     results = dict()
     if not fcnn: 
@@ -323,7 +324,10 @@ def get_eval_results(test_loader: DataLoader,
     results['NRMSE_V'] = "{:e}".format(get_nrmse(pred_se_va[:,0], label_se_va[:,0].to(device)) / num_graphs) 
     results['NRMSE_A'] = "{:e}".format(get_nrmse(pred_se_va[:,1], label_se_va[:,1].to(device)) / num_graphs)
 
-    return results 
+    if output_pred_va: 
+        return results, pred_se_va, label_se_va 
+    else: 
+        return results
 
 ##############################################################################################################################
 

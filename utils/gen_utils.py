@@ -473,7 +473,12 @@ def write_markdown_report(config: Dict, results: Dict, all_losses: Tuple, report
             f.write('### Predictions vs. Labels Joint Distribution \n\n')
             f.write("![Pred vs. Labels kde](va_pred_label_joint.png)")
 
-        else: 
+            # Results
+            f.write("## 🔎 Results \n\n")
+            for key, value in results.items():
+                f.write(f"- **{key}**: `{value}`\n")
+            f.write(f"\n Test Loss = {all_losses[2]}\n\n")
+        else:
             # Results
             f.write("## 🔎 Results \n\n")
             for key, value in results.items():

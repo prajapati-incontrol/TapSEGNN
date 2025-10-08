@@ -39,7 +39,7 @@ training_G:
 # discriminator model config 
 model_D: 
   hidden_channel: 32
-  out_channel: 32
+  out_channel: 16
 
 # discriminator training config 
 training_D: 

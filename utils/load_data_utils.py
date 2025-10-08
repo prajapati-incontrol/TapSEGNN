@@ -420,10 +420,10 @@ def load_sampled_input_data(sc_type: int,
                 For other networks, randomly get the mask based on the sparsity probability.
                 """
 
-                node_input_feat, node_vapql, edge_input_feat, y_label, y_trafo_label, node_mask, edge_mask, edge_index_dir = load_sc_9(net=net, 
+                node_input_feat, node_vapql, edge_input_feat, y_label, y_trafo_label, node_mask, edge_mask, edge_index_dir, edge_p_pfr_edge = load_sc_9(net=net, 
                                                                                                  num_samples=num_samples, 
                                                                                                  trafo_ids=trafo_ids, 
-                                                                                                 noise=noise, 
+                                                                                                 noise=True, 
                                                                                                 )
                 
                 if scaler:
@@ -459,6 +459,7 @@ def load_sampled_input_data(sc_type: int,
                 sampled_input_data['node_mask'] = node_mask 
                 sampled_input_data['edge_mask'] = edge_mask
                 sampled_input_data['edge_index_dir'] = edge_index_dir
+                sampled_input_data['edge_p_pfr_edge'] = edge_p_pfr_edge
 
                 nnz_node_mask = torch.count_nonzero(node_mask[0,:,:])
                 nnz_edge_mask = torch.count_nonzero(edge_mask[0,:,0])
@@ -502,12 +503,14 @@ def load_sc_9(net: pp.pandapowerNet,
     # node input features 
     node_input_features = np.zeros((num_samples, num_buses, num_node_features))
     node_vapq = np.zeros((num_samples, num_buses, 6)) # all V, A, P, Q, P_load, Q_load
-
+    
     # edge input features 
     num_lines = len(net.line.index)
     num_trafos = len(net.trafo.index)
     num_edges = num_lines + num_trafos
     num_edge_features = 6 # p_+ve, r, x, b, g, tap    
+
+    edge_p_pfr_edge = np.zeros((num_edges, num_samples))
 
     # edge input features 
     edge_input_features = np.zeros((num_samples, num_edges, num_edge_features))
@@ -626,6 +629,7 @@ def load_sc_9(net: pp.pandapowerNet,
 
                 # p_+ve measurements 
                 edge_input_features[iperm, :, 0] = get_positive_power_flow(net)
+                edge_p_pfr_edge[:, iperm] = edge_input_features[iperm, :, 0]
 
                 # edge index directed 
                 edge_index_dir[iperm] = get_power_flow_edge_index(net)
@@ -647,9 +651,7 @@ def load_sc_9(net: pp.pandapowerNet,
     node_mask = np.zeros((num_samples, num_buses, num_node_features))
     edge_mask = np.zeros((num_samples, num_edges, num_edge_features))
 
-    if net.name == 'net_A':
-        # embed real locations
-        # account for real measurements 
+    if net.name == 'net_A': 
         print("\n Embedding real measurement locations for Net-A\n")
         node_mask, edge_mask = get_netA_mask(net, node_mask, edge_mask)
     else: 
@@ -658,15 +660,28 @@ def load_sc_9(net: pp.pandapowerNet,
         edge_mask[:,:,0] = get_array_mask(edge_mask[:,:,0], sparsity_prob=sparsity_prob)
         edge_mask[:,:,1:] = 1 # parameters are considered known.
 
+    # if net.name == 'net_A':
+    #     # embed real locations
+    #     # account for real measurements 
+    #     print("\n Embedding real measurement locations for Net-A\n")
+    #     node_mask, edge_mask = get_netA_mask(net, node_mask, edge_mask)
+    # else: 
+    #     sparsity_prob = 0.5
+    #     node_mask = get_array_mask(node_input_features, sparsity_prob=sparsity_prob)
+    #     edge_mask[:,:,0] = get_array_mask(edge_mask[:,:,0], sparsity_prob=sparsity_prob)
+    #     edge_mask[:,:,1:] = 1 # parameters are considered known.
+
     if noise: 
         edge_input_features_noisy = copy.deepcopy(edge_input_features)
         node_input_features_noisy = copy.deepcopy(node_input_features)
         
-        node_input_features_noisy[:,:,0] = np.random.normal(node_input_features[:,:,0], 0.5/100/4)
-        node_input_features_noisy[:,:,1] = np.random.normal(node_input_features[:,:,1], 5/100/4) 
-
-        # add uncertainty to p measurements only not parameters
-        edge_input_features_noisy[:,:,0] = np.random.normal(edge_input_features[:,:,0], 5/100/4)
+        voltage_noise = 0.01/100/3 
+        power_noise = 5/100/3
+        print(f">>> Using relative noise of {voltage_noise*100}% on voltage and {power_noise*100}% on power measurements.")
+        # relative noise: 1% in voltage, 5% in power measurements
+        node_input_features_noisy[:,:,0] = node_input_features[:,:,0] + np.random.normal(0, voltage_noise)
+        node_input_features_noisy[:,:,1] = node_input_features[:,:,1] + np.random.normal(0, power_noise) 
+        edge_input_features_noisy[:,:,0] = edge_input_features[:,:,0] + np.random.normal(0, power_noise)
 
         # convert all arrays to tensors 
         node_input_features_noisy = torch.tensor(node_input_features_noisy, dtype=torch.float32)
@@ -679,7 +694,7 @@ def load_sc_9(net: pp.pandapowerNet,
             print(f"{tensor_any_nan(node_input_features_noisy, edge_input_features_noisy, y_label)[1]} has NaNs!")
             raise ValueError("NaN in input data to train!")
         
-        return node_input_features_noisy, node_vapq, edge_input_features_noisy, y_label, y_trafo_label, node_mask, edge_mask, edge_index_dir 
+        return node_input_features_noisy, node_vapq, edge_input_features_noisy, y_label, y_trafo_label, node_mask, edge_mask, edge_index_dir, edge_p_pfr_edge 
 
     else: 
 
@@ -694,7 +709,7 @@ def load_sc_9(net: pp.pandapowerNet,
             print(f"{tensor_any_nan(node_input_features_noisy, edge_input_features_noisy, y_label)[1]} has NaNs!")
             raise ValueError("NaN in input data to train!")
 
-        return node_input_features, node_vapq, edge_input_features, y_label, y_trafo_label, node_mask, edge_mask, edge_index_dir
+        return node_input_features, node_vapq, edge_input_features, y_label, y_trafo_label, node_mask, edge_mask, edge_index_dir, edge_p_pfr_edge
 
 
 #####################################################################################
@@ -786,11 +801,14 @@ def load_sc_8_discriminator(net: pp.pandapowerNet,
     if noise:  
         node_input_features_noisy = copy.deepcopy(node_input_features)
         edge_input_features_noisy = copy.deepcopy(edge_input_features)
-
-        node_input_features_noisy[:,:,0] = np.random.normal(node_input_features[:,:,0], 0.5/100/3)
-        node_input_features_noisy[:,:,1] = np.random.normal(node_input_features[:,:,1], 5/100/3) 
-        edge_input_features_noisy[:,:,0] = np.random.normal(edge_input_features[:,:,0], 5/100/3)
-    
+        voltage_noise = 1/100 
+        power_noise = 5/100
+        print(f">>> Using relative noise of {voltage_noise}% on voltage \
+              and {power_noise}% on power measurements.")
+        # relative noise: 1% in voltage, 5% in power measurements
+        node_input_features_noisy[:,:,0] = np.random.normal(node_input_features[:,:,0], voltage_noise)
+        node_input_features_noisy[:,:,1] = np.random.normal(node_input_features[:,:,1], power_noise) 
+        edge_input_features_noisy[:,:,0] = np.random.normal(edge_input_features[:,:,0], power_noise)
     else: 
         node_input_features_noisy[:,:,0] = node_input_features[:,:,0]
         node_input_features_noisy[:,:,1] = node_input_features[:,:,1]

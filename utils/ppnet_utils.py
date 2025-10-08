@@ -72,27 +72,28 @@ def check_pf_consistency(net_name: str,
     return results, simulated_pf_v
 
 
-
-
 ##########################################################################################################
 
 def initialize_network(net_name: str,
                        load_std: float = 0.0001,  
                        verbose: bool = True) -> pp.pandapowerNet: 
-    net.name = net_name
+    
     match net_name: 
         case 'net_A':
             net = get_net_A()
+            net.name = net_name
             net.load.loc[:, 'p_std'] = load_std
             net.trafo.shift_degree = 0.0
 
         case 'net_B': 
             net = get_net_B() 
+            net.name = net_name
             net.load.loc[:, 'p_std'] = load_std 
             net.trafo.shift_degree = 0.0  
         
         case 'net_4bus': 
             net = get_net_4bus()
+            net.name = net_name
             net.load.loc[:, 'p_std'] = load_std 
             net.trafo.shift_degree = 0.0
 
@@ -704,22 +705,16 @@ def use_stored_pfr(net: pp.pandapowerNet, parent_dir):
 
 #####################################################################################
 
-
 def custom_se(net: pp.pandapowerNet, 
               pfr_dict: Dict, 
-            #   verbose: bool = False,
               se_iter: int = 2,
-              is_line_meas:bool=False,
-              is_for_rq2:bool=False, 
-              prob_lq_meas:float=0.0) -> pp.pandapowerNet:
+            ) -> pp.pandapowerNet:
     """
     Custom state-estimation for a pandapower network targetted to get consistent results by using 
     a measurement vector. 
     """
-    v_pfr = np.array(pfr_dict['vm_pfr'])
-    va_pfr = np.array(pfr_dict['va_pfr'])
+    # v_pfr = np.array(pfr_dict['vm_pfr'])
     p_pfr = np.array(pfr_dict['p_pfr'])
-    q_pfr = np.array(pfr_dict['q_pfr'])
     p_pfr_line = np.array(pfr_dict['p_pfr_line'])
     
     # drop the measurements or power flow results if any 
@@ -731,68 +726,67 @@ def custom_se(net: pp.pandapowerNet,
 
     v_meas_bus_idx = list(net.bus.index)
     p_meas_bus_idx = list(net.bus.index)
-    q_meas_bus_idx = list(net.bus.index)
     p_meas_line_idx = list(net.line.index)
     
     # add them as measurements with uncertainty to pandapower 
     # standard deviations for v measurements are usually 1% and that of p are 5%
     a = 1
-    v_std = 0.1*0.5/100/3 * a
-    p_std = 5/100/3 * a
-    p_line_std = 5/100/3 * a 
+    # v_std = 0.01/100 * a
+    p_std = 0.5/100 * a
+    p_line_std = 5/100 * a 
+
 
     # because dataframe indices is not in natural sequence
-    for idx, (idx_v, idx_p) in enumerate(zip(v_meas_bus_idx, p_meas_bus_idx)): 
-        vm_at_idx_v = v_pfr[idx] + np.random.normal(0, v_std)
-        # relative std
-        p_at_idx_p = p_pfr[idx] + np.random.normal(0,p_std) * p_pfr[idx]   
-        pp.create.create_measurement(net, "v", "bus", value=vm_at_idx_v, std_dev = v_std, element = idx_v)
-        pp.create.create_measurement(net, "p", "bus", value=p_at_idx_p, std_dev = p_std, element = idx_p)
+    # for idx, (idx_v, idx_p) in enumerate(zip(v_meas_bus_idx, p_meas_bus_idx)): 
+    #     # Add relative noise
+    #     vm_at_idx_v = v_pfr[idx] + np.random.normal(0, v_std) * v_pfr[idx]
+    #     p_at_idx_p = p_pfr[idx] + np.random.normal(0, p_std) * p_pfr[idx]
+        
+    #     # Calculate ABSOLUTE std dev for each measurement
+    #     v_std_abs = v_std * v_pfr[idx]  # ← This is the key fix!
+    #     p_std_abs = p_std * abs(p_pfr[idx])
+        
+    #     pp.create.create_measurement(net, "v", "bus", value=vm_at_idx_v, 
+    #                                 std_dev=v_std_abs, element=idx_v)
+    #     pp.create.create_measurement(net, "p", "bus", value=p_at_idx_p, 
+    #                                 std_dev=p_std_abs, element=idx_p)
+
+    #     # DEBUG: 
+    #     v_true = v_pfr[idx]
+    #     error_percent = abs(vm_at_idx_v - v_true) / v_true * 100
     
+    #     print(f"Bus {idx_v}: True={v_true:.4f}, Meas={vm_at_idx_v:.4f}, "
+    #         f"Error={error_percent:.3f}%, StdDev={v_std_abs:.6f}")
+
+        # because dataframe indices is not in natural sequence
+    for idx, idx_p in enumerate(p_meas_bus_idx): 
+        # Add relative noise
+        p_at_idx_p = p_pfr[idx] + np.random.normal(0, p_std) * p_pfr[idx]
+        
+        # Calculate ABSOLUTE std dev for each measurement
+        p_std_abs = p_std * abs(p_pfr[idx])
+        
+        pp.create.create_measurement(net, "p", "bus", value=p_at_idx_p, 
+                                    std_dev=p_std_abs, element=idx_p)
+
+
     # no. of measurments
     n_meas = len(v_meas_bus_idx) + len(p_meas_bus_idx)
-
-    if is_for_rq2:
-        # which lines to include for creating measurement
-        meas_bool_line = np.random.rand(len(p_meas_line_idx)) < (prob_lq_meas) 
-
-        # create only those measurements 
-        p_meas_line_idx = [i for idx, i in enumerate(p_meas_line_idx) if meas_bool_line[idx]]
-        n_meas += len(p_meas_line_idx)
-        print(f"Total line measurements = {len(p_meas_line_idx)}")
-        for idx, idx_p_line in enumerate(p_meas_line_idx):
-                p_meas_at_line = p_pfr_line[idx] + np.random.normal(0, p_line_std)
-                pp.create.create_measurement(net, "p","line",value=p_meas_at_line, std_dev=p_line_std, side='from', element=idx_p_line)
-
-        # which buses to include for creating measurement for reactive power 
-        meas_bool_bus = np.random.rand(len(q_meas_bus_idx)) < (prob_lq_meas)
-
-        q_meas_bus_idx = [i for idx, i in enumerate(meas_bool_bus) if meas_bool_bus[idx]]
-        n_meas += len(q_meas_bus_idx)
-        print(f"Reactive power measurements = {len(q_meas_bus_idx)}")
-        for idx, idx_q in enumerate(q_meas_bus_idx):
-            q_at_idx_q = q_pfr[idx] + np.random.normal(0, p_std) * q_pfr[idx]
-            pp.create.create_measurement(net, "q", "bus", value=q_at_idx_q, std_dev = p_std, element= idx_q)
-        print(f"Redundancy = {n_meas / (2*n_bus - 1)}.")
-        net.eta = n_meas / (2*n_bus - 1)
-
-
-    else:  
-        if is_line_meas: 
-            n_meas += len(p_meas_line_idx)
-            for idx, idx_p_line in enumerate(p_meas_line_idx):
-                p_meas_at_line = p_pfr_line[idx] + np.random.normal(0, p_line_std)
-                pp.create.create_measurement(net, "p","line",value=p_meas_at_line, std_dev=p_line_std, side='from', element=idx_p_line)
-        
+  
+    n_meas += len(p_meas_line_idx)
+    for idx, idx_p_line in enumerate(p_meas_line_idx):
+        p_meas_at_line = p_pfr_line[idx] + np.random.normal(0, p_line_std)
+        pp.create.create_measurement(net, "p","line",value=p_meas_at_line, std_dev=p_line_std, side='from', element=idx_p_line)
+    
     # drop the pf results 
     net = drop_pf_results(net)
     
-    success = pp.estimation.estimate(net, algorithm='wls', init='flat') 
-    
+    success = pp.estimation.estimate(net, algorithm='wls', init='flat')['success'] 
+
     if success: 
-        print(f"State estimation successful for {net.name}!")
+        # print(f"State estimation successful for {net.name}!")
         # number of measurements 
-        print(f"Total number of measurements = {n_meas} and number of measurements should be at least {2*n_bus - 1}")
+        # print(f"Total number of measurements = {n_meas} and number of measurements should be at least {2*n_bus - 1}")
         # print(net)
         return net
     elif not success and se_iter > 1:
@@ -800,7 +794,6 @@ def custom_se(net: pp.pandapowerNet,
         print(f"State estimation failed. Retrying... Remaining attempts: {se_iter - 1}")
         return custom_se(net=net, 
                         pfr_dict=pfr_dict,
-                        is_line_meas=is_line_meas, 
                         se_iter=se_iter - 1)
     else: 
         UserWarning(f"Solver failed for {net.name}, returning net as it is.")
@@ -1169,3 +1162,155 @@ def get_power_flow_edge_index(net):
 
 
 #     return y_series, y_shunt
+
+
+def custom_se_rq4(net: pp.pandapowerNet, 
+                  std_meas: float = 0.01, 
+                  std_pseudo: float = 0.02,
+                  sparsity_prob: float = 0.5, 
+                  se_iter: int = 10):
+    """
+
+    Bus_type_1: With measurements 
+    Bus_type_2: No measurements 
+    Noise on measurements at bus_type_1: power flow results + std_meas 
+    Noise on measurements at bus_type_2: power flow results + std_pseudo
+
+    Args: 
+        net (pp.pandapowerNet): Pandapower Network.
+        std_meas (float): standard deviation of zero-mean Gaussian noise over the buses. 
+        std_pseudo (float): standard deviation of zero-mean Gaussian noise over the buses. 
+
+    Returns: 
+        net_meas (pp.pandapowerNet): Net with state-estimation results if converged else original net.
+
+    """
+
+    # drop the measurements or power flow results if any 
+    net.measurement.drop(net.measurement.index, inplace = True)
+    net = drop_pf_results(net)
+
+    # perform power flow 
+    pp.runpp(net)
+
+    # for at bus measurements
+    vm_pfr = net.res_bus.vm_pu
+    p_pfr = net.res_bus.p_mw 
+    
+    # for to/from bus measurements 
+    p_pfr_from_line = net.res_line.p_from_mw
+    q_pfr_from_line = net.res_line.q_from_mvar
+    p_pfr_to_line = net.res_line.p_to_mw
+    q_pfr_to_line = net.res_line.q_to_mvar
+
+    # all bus indices
+    all_bus = np.array(net.bus.index)
+
+    if net.name == "net_A": 
+        print("Net A selected.")
+        # v, p measurements available at buses 
+        at_bus_meas = np.array([0,1,2,3,5,7,11,17,22])
+
+        # p_flow, q_flow measuremnets available at switching stations to and from the bus 
+        flow_bus_meas = np.array([5,7,11,17,22])
+        
+    else: 
+        # consider at and flow buses same for other networks 
+        # with some sparsity probability 
+        meas_bus_mask = np.random.rand(all_bus.size) >= sparsity_prob 
+        at_bus_meas = np.array([bus_id for bus_id in all_bus if meas_bus_mask[bus_id]])
+
+        flow_bus_meas = at_bus_meas 
+
+    # ~at_bus_meas 
+    not_at_bus_mask = np.ones(all_bus.size, dtype=bool)
+    not_at_bus_mask[at_bus_meas] = False
+    not_at_bus_meas = all_bus[not_at_bus_mask]
+
+    not_flow_bus_mask = np.ones(all_bus.size, dtype=bool)
+    not_flow_bus_mask[flow_bus_meas] = False 
+    not_flow_bus_meas = all_bus[not_flow_bus_mask]
+
+    num_meas = 0
+    # create v, p measurements at at_bus_meas 
+    for idx, (idx_bus) in enumerate(at_bus_meas):
+        num_meas += 2
+        vm_at_idx_bus = vm_pfr[idx] + np.random.normal(0, std_meas)
+        pmw_at_idx_bus = p_pfr[idx] + np.random.normal(0, std_meas)
+
+        pp.create.create_measurement(net, "v", "bus", value=vm_at_idx_bus, std_dev=std_meas, element = idx_bus)
+        pp.create.create_measurement(net, "p", "bus", value=pmw_at_idx_bus, std_dev=std_meas, element = idx_bus)
+    
+    # create v, p measurements at not_at_bus_meas 
+    for idx, (idx_bus) in enumerate(not_at_bus_meas):
+        num_meas += 2
+        vm_at_idx_bus = vm_pfr[idx] + np.random.normal(0, std_pseudo)
+        pmw_at_idx_bus = p_pfr[idx] + np.random.normal(0, std_pseudo)
+
+        pp.create.create_measurement(net, "v", "bus", value=vm_at_idx_bus, std_dev=std_pseudo, element = idx_bus)
+        pp.create.create_measurement(net, "p", "bus", value=pmw_at_idx_bus, std_dev=std_pseudo, element = idx_bus)
+
+
+    # create p_from, q_from, p_to, q_to measurements at flow_bus_meas 
+    for iline, line in net.line.iterrows(): 
+        from_bus = int(line.from_bus)
+        to_bus = int(line.to_bus)
+
+        if to_bus in flow_bus_meas: 
+            num_meas += 2
+            p_to_mw_meas = p_pfr_to_line[iline] + np.random.normal(0, std_meas)
+            q_to_mvar_meas = q_pfr_to_line[iline] + np.random.normal(0, std_meas)
+            pp.create.create_measurement(net, "p", "line", value=p_to_mw_meas, std_dev=std_meas, side="to", element=iline)
+            pp.create.create_measurement(net, "q", "line", value=q_to_mvar_meas, std_dev=std_meas, side="to", element=iline)
+
+        if from_bus in flow_bus_meas: 
+            num_meas += 2
+            p_from_mw_meas = p_pfr_from_line[iline] + np.random.normal(0, std_meas)
+            q_from_mvar_meas = q_pfr_from_line[iline] + np.random.normal(0, std_meas)
+            pp.create.create_measurement(net, "p", "line", value=p_from_mw_meas, std_dev=std_meas, side="from", element=iline)
+            pp.create.create_measurement(net, "q", "line", value=q_from_mvar_meas, std_dev=std_meas, side="from", element=iline)
+
+        if to_bus in not_flow_bus_meas:
+            num_meas += 2
+            p_to_mw_meas = p_pfr_to_line[iline] + np.random.normal(0, std_pseudo)
+            q_to_mvar_meas = q_pfr_to_line[iline] + np.random.normal(0, std_pseudo)
+            pp.create.create_measurement(net, "p", "line", value=p_to_mw_meas, std_dev=std_pseudo, side="to", element=iline)
+            pp.create.create_measurement(net, "q", "line", value=q_to_mvar_meas, std_dev=std_pseudo, side="to", element=iline)
+
+        if from_bus in not_flow_bus_meas: 
+            num_meas += 2
+            p_from_mw_meas = p_pfr_from_line[iline] + np.random.normal(0, std_pseudo)
+            q_from_mvar_meas = q_pfr_from_line[iline] + np.random.normal(0, std_pseudo)
+            pp.create.create_measurement(net, "p", "line", value=p_from_mw_meas, std_dev=std_pseudo, side="from", element=iline)
+            pp.create.create_measurement(net, "q", "line", value=q_from_mvar_meas, std_dev=std_pseudo, side="from", element=iline)  
+
+    # drop the power flow results 
+    net = drop_pf_results(net)
+
+    # number of measurements 
+    n_bus = len(net.bus.index)
+    n_meas = len(net.bus.index)*2 + len(net.line.index)*4 
+    print(f"n_meas = {n_meas}")
+
+    success = pp.estimation.estimate(net, algorithm="wls", init="flat")
+
+    if success: 
+        # print(f"State estimation successful for {net.name}!")
+        # number of measurements 
+        # print(f"Total number of measurements = {n_meas} and number of measurements should be at least {2*n_bus - 1}")
+        
+        return net
+    elif not success and se_iter > 1:
+        # if verbose:
+        print(f"State estimation failed. Retrying... Remaining attempts: {se_iter - 1}")
+        return custom_se_rq4(net=net, 
+                             std_meas=std_meas, 
+                             std_pseudo=std_pseudo, 
+                             sparsity_prob=sparsity_prob, 
+                             se_iter=se_iter - 1) 
+    
+    else: 
+        UserWarning(f"Solver failed for {net.name}, returning net as it is.")
+        # number of measurements 
+        print(f"Total number of measurements = {n_meas} and number of measurements should be at least {2*n_bus - 1}")
+        return net
