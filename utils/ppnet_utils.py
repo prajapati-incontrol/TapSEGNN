@@ -708,15 +708,16 @@ def use_stored_pfr(net: pp.pandapowerNet, parent_dir):
 def custom_se(net: pp.pandapowerNet, 
               pfr_dict: Dict, 
               se_iter: int = 2,
-            ) -> pp.pandapowerNet:
+              verbose: bool = False) -> pp.pandapowerNet:
     """
     Custom state-estimation for a pandapower network targetted to get consistent results by using 
     a measurement vector. 
     """
-    # v_pfr = np.array(pfr_dict['vm_pfr'])
+    v_pfr = np.array(pfr_dict['vm_pfr'])
     p_pfr = np.array(pfr_dict['p_pfr'])
     p_pfr_line = np.array(pfr_dict['p_pfr_line'])
-    
+    q_pfr = np.array(pfr_dict['q_pfr'])
+
     # drop the measurements or power flow results if any 
     net.measurement.drop(net.measurement.index, inplace = True)
     net = drop_pf_results(net)
@@ -725,72 +726,51 @@ def custom_se(net: pp.pandapowerNet,
     n_bus = len(net.bus.index)
 
     v_meas_bus_idx = list(net.bus.index)
-    p_meas_bus_idx = list(net.bus.index)
+    pq_meas_bus_idx = list(net.bus.index)
     p_meas_line_idx = list(net.line.index)
-    
-    # add them as measurements with uncertainty to pandapower 
-    # standard deviations for v measurements are usually 1% and that of p are 5%
-    a = 1
-    # v_std = 0.01/100 * a
-    p_std = 0.5/100 * a
-    p_line_std = 5/100 * a 
 
+    # noise levels 
+    v_noise = 1/100 
+    pq_noise = 5/100 
+    pflow_noise = 5/100
 
     # because dataframe indices is not in natural sequence
-    # for idx, (idx_v, idx_p) in enumerate(zip(v_meas_bus_idx, p_meas_bus_idx)): 
-    #     # Add relative noise
-    #     vm_at_idx_v = v_pfr[idx] + np.random.normal(0, v_std) * v_pfr[idx]
-    #     p_at_idx_p = p_pfr[idx] + np.random.normal(0, p_std) * p_pfr[idx]
-        
-    #     # Calculate ABSOLUTE std dev for each measurement
-    #     v_std_abs = v_std * v_pfr[idx]  # ← This is the key fix!
-    #     p_std_abs = p_std * abs(p_pfr[idx])
-        
-    #     pp.create.create_measurement(net, "v", "bus", value=vm_at_idx_v, 
-    #                                 std_dev=v_std_abs, element=idx_v)
-    #     pp.create.create_measurement(net, "p", "bus", value=p_at_idx_p, 
-    #                                 std_dev=p_std_abs, element=idx_p)
-
-    #     # DEBUG: 
-    #     v_true = v_pfr[idx]
-    #     error_percent = abs(vm_at_idx_v - v_true) / v_true * 100
-    
-    #     print(f"Bus {idx_v}: True={v_true:.4f}, Meas={vm_at_idx_v:.4f}, "
-    #         f"Error={error_percent:.3f}%, StdDev={v_std_abs:.6f}")
-
-        # because dataframe indices is not in natural sequence
-    for idx, idx_p in enumerate(p_meas_bus_idx): 
+    for idx, (idx_v, idx_p) in enumerate(zip(v_meas_bus_idx, pq_meas_bus_idx)): 
         # Add relative noise
-        p_at_idx_p = p_pfr[idx] + np.random.normal(0, p_std) * p_pfr[idx]
-        
-        # Calculate ABSOLUTE std dev for each measurement
-        p_std_abs = p_std * abs(p_pfr[idx])
-        
+        vm_at_idx_v = v_pfr[idx] + np.random.normal(0, v_noise) * v_pfr[idx]
+        p_at_idx_p = p_pfr[idx] + np.random.normal(0, pq_noise) * p_pfr[idx]
+        q_at_idx_p = q_pfr[idx] + np.random.normal(0, pq_noise) * q_pfr[idx]
+
+        v_std_abs = v_noise * v_pfr[idx]
+        p_std_abs = pq_noise * p_pfr[idx]
+        q_std_abs = pq_noise * q_pfr[idx]
+
+        # create measurements 
+        pp.create.create_measurement(net, "v", "bus", value=vm_at_idx_v, 
+                                     std_dev=v_std_abs, element=idx_v)
         pp.create.create_measurement(net, "p", "bus", value=p_at_idx_p, 
-                                    std_dev=p_std_abs, element=idx_p)
+                                     std_dev=p_std_abs, element=idx_p)
+        pp.create.create_measurement(net, "q", "bus", value=q_at_idx_p, 
+                                     std_dev=q_std_abs, element=idx_p)
 
-
-    # no. of measurments
-    n_meas = len(v_meas_bus_idx) + len(p_meas_bus_idx)
-  
-    n_meas += len(p_meas_line_idx)
     for idx, idx_p_line in enumerate(p_meas_line_idx):
-        p_meas_at_line = p_pfr_line[idx] + np.random.normal(0, p_line_std)
-        pp.create.create_measurement(net, "p","line",value=p_meas_at_line, std_dev=p_line_std, side='from', element=idx_p_line)
+        p_meas_at_line = p_pfr_line[idx] + np.random.normal(0, pflow_noise)
+        pp.create.create_measurement(net, "p","line",value=p_meas_at_line, std_dev=pflow_noise, side='from', element=idx_p_line)
     
+    # no. of measurments
+    n_meas = len(v_meas_bus_idx) + 2 * len(pq_meas_bus_idx) + len(p_meas_line_idx)
+
     # drop the pf results 
     net = drop_pf_results(net)
     
     success = pp.estimation.estimate(net, algorithm='wls', init='flat')['success'] 
 
     if success: 
-        # print(f"State estimation successful for {net.name}!")
-        # number of measurements 
-        # print(f"Total number of measurements = {n_meas} and number of measurements should be at least {2*n_bus - 1}")
-        # print(net)
+        if verbose: 
+            print(f"State estimation successful for {net.name}!")
+            print(f"Total number of measurements = {n_meas} and number of measurements should be at least {2*n_bus - 1}")
         return net
     elif not success and se_iter > 1:
-        # if verbose:
         print(f"State estimation failed. Retrying... Remaining attempts: {se_iter - 1}")
         return custom_se(net=net, 
                         pfr_dict=pfr_dict,

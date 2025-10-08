@@ -675,8 +675,8 @@ def load_sc_9(net: pp.pandapowerNet,
         edge_input_features_noisy = copy.deepcopy(edge_input_features)
         node_input_features_noisy = copy.deepcopy(node_input_features)
         
-        voltage_noise = 0.01/100/3 
-        power_noise = 5/100/3
+        voltage_noise = 1/100 
+        power_noise = 5/100
         print(f">>> Using relative noise of {voltage_noise*100}% on voltage and {power_noise*100}% on power measurements.")
         # relative noise: 1% in voltage, 5% in power measurements
         node_input_features_noisy[:,:,0] = node_input_features[:,:,0] + np.random.normal(0, voltage_noise)
