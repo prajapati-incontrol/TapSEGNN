@@ -79,7 +79,7 @@ def check_pf_consistency(net_name: str,
 def initialize_network(net_name: str,
                        load_std: float = 0.0001,  
                        verbose: bool = True) -> pp.pandapowerNet: 
-    
+    net.name = net_name
     match net_name: 
         case 'net_A':
             net = get_net_A()
