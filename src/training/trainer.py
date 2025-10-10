@@ -5,6 +5,7 @@ from torch.optim import Optimizer
 from torch.optim.lr_scheduler import LRScheduler
 from torch_geometric.loader import DataLoader
 import time
+import numpy as np
 
 
 def log_cosh_loss(pred, target): 
@@ -135,12 +136,15 @@ def trainer(model: nn.Module,
             num_epoch: int,
             early_stopping: bool,
             val_patience: int,
-            tap_weight: float = 1, 
+            tap_weight: float = 1,
+            angle_weight: float = 1.1,  
             device: Literal['cpu','cuda','mps'] = 'cpu') -> Tuple[List,List,List,List]:
     """Returns training, validation and testing losses."""
     train_losses = []
     val_losses = []
     gradient_norms = []
+    list_mean_acc_all_taps = []
+    se_train_losses, se_val_losses, all_tap_train_losses, all_tap_val_losses = [],[],[],[]
     start_tr = time.perf_counter() # time.time is not accurate
     fcnn_nets = {"FCNNRegressor"}
     multi_tapse_nets = {"MultiTapSEGNN"}
@@ -149,7 +153,6 @@ def trainer(model: nn.Module,
     early_stop = 0
     criterion_se_v = nn.MSELoss() 
     criterion_se_a = nn.L1Loss()
-    angle_weight = 1.1
     for epoch in range(num_epoch):
         # if model.name in tapse_nets:
         #     train_loss, se_train_loss, tap_train_loss = train_epoch_tapse(model, train_loader, optimizer, tap_weight, device)
@@ -172,6 +175,8 @@ def trainer(model: nn.Module,
                                      criterion_se_a=criterion_se_a,
                                      angle_weight=angle_weight,
                                      device=device)
+            se_train_loss = train_loss 
+            se_val_loss = val_loss
         elif model.name in multi_tapse_nets: 
             train_loss, se_train_loss, all_tap_train_loss, gradient_norm = train_epoch_multitapse(model, 
                                                                                    train_loader, 
@@ -181,13 +186,15 @@ def trainer(model: nn.Module,
                                                                                    criterion_se_a=criterion_se_a,
                                                                                    angle_weight=angle_weight,
                                                                                    device=device)
-            val_loss, se_val_loss, all_tap_val_loss = eval_epoch_multitapse(model, 
+            val_loss, se_val_loss, all_tap_val_loss, mean_acc_all_taps = eval_epoch_multitapse(model, 
                                                                             val_loader, 
                                                                             weight=tap_weight,
                                                                             criterion_se_v=criterion_se_v,
                                                                             criterion_se_a=criterion_se_a,
                                                                             angle_weight=angle_weight,
                                                                             device=device)
+            all_tap_train_losses.append(all_tap_train_loss)
+            all_tap_val_losses.append(all_tap_val_loss)
         elif model.name in fcnn_nets:
             train_loss, gradient_norm = train_epoch_fcnn_se(model, 
                                                             train_loader, 
@@ -209,6 +216,17 @@ def trainer(model: nn.Module,
         train_losses.append(train_loss)
         val_losses.append(val_loss)
         gradient_norms.append(gradient_norm)
+        se_train_losses.append(se_train_loss)
+        
+        se_val_losses.append(se_val_loss)
+
+
+
+
+        if model.name in multi_tapse_nets: 
+            list_mean_acc_all_taps.append(mean_acc_all_taps)
+        else:
+            list_mean_acc_all_taps = None 
 
         if early_stopping:
             # early stopping if validation loss starts increasing 
@@ -238,7 +256,7 @@ def trainer(model: nn.Module,
                 print(f"At epoch: {epoch}, \t training loss: {train_loss:.3e}, \
                     \t validation loss: {val_loss:.3e} \t lr: {schedular_last_lr:.2e} \t grad_norm: {gradient_norm:.3e}") 
             elif model.name in multi_tapse_nets: 
-                print(f"At epoch: {epoch}, \t training loss: {se_train_loss:.3e} + {tap_weight:.1e} * {all_tap_train_loss:.3e} = {train_loss:.3e}, \t validation loss: {se_val_loss:.3e} + {tap_weight:.1e} * {all_tap_val_loss:.3e} = {val_loss:.3e} \t lr: {schedular_last_lr:.2e} \t grad_norm: {gradient_norm:.3e}")
+                print(f"At epoch: {epoch}, \t training loss: {se_train_loss:.3e} + {tap_weight:.1e} * {all_tap_train_loss:.3e} = {train_loss:.3e}, \t validation loss: {se_val_loss:.3e} + {tap_weight:.1e} * {all_tap_val_loss:.3e} = {val_loss:.3e} \t lr: {schedular_last_lr:.2e} \t grad_norm: {gradient_norm:.3e} \t tap accuracy: {mean_acc_all_taps:.2e}")
             elif model.name in fcnn_nets: 
                 print(f"At epoch: {epoch}, \t training loss: {train_loss:.3e}, \
                     \t validation loss: {val_loss:.3e} \t lr: {schedular_last_lr:.2e} \t grad_norm: {gradient_norm:.3e}")
@@ -248,6 +266,7 @@ def trainer(model: nn.Module,
             
     end_tr = time.perf_counter()
     elapsed_tr = end_tr - start_tr
+    
 
     print(f"Model training took {elapsed_tr:.3f} seconds.")
 
@@ -260,24 +279,32 @@ def trainer(model: nn.Module,
                                   criterion_se_a=criterion_se_a,
                                   angle_weight=angle_weight,
                                   device=device)
+        print(f"Test Loss of the resulting model is {test_loss:.8e}")
+        other_losses = {'se_train_losses': se_train_losses,
+                    'se_val_losses': se_val_losses} 
     elif model.name in {"MultiTapSEGNN"}:
-        test_loss = eval_epoch_multitapse(model, 
+        test_loss, _,_, test_mean_tap_acc = eval_epoch_multitapse(model, 
                                           test_loader, 
                                           weight=tap_weight, 
                                           criterion_se_v=criterion_se_v,
                                           criterion_se_a=criterion_se_a,
                                           angle_weight=angle_weight,
-                                          device=device)[0]
+                                          device=device)
+        other_losses = {'se_train_losses': se_train_losses,
+                    'se_val_losses': se_val_losses, 
+                    'all_tap_train_losses': all_tap_train_losses,
+                    'all_tap_val_losses': all_tap_val_losses} 
+        print(f"Test Loss of the resulting model is {test_loss:.8e} and Mean Tap Accuracy is {test_mean_tap_acc:2e}")
     elif model.name in fcnn_nets: 
         test_loss = eval_epoch_fcnn_se(model, 
                                        test_loader, 
                                        device=device)
+        print(f"Test Loss of the resulting model is {test_loss:.8e}")
     else: 
         raise NotImplementedError("Model not available for calculating test loss.")
 
-    print(f"Test Loss of the resulting model is {test_loss:.8e}")
-
-    return train_losses, val_losses, test_loss, gradient_norms
+    
+    return train_losses, val_losses, test_loss, gradient_norms, list_mean_acc_all_taps, other_losses
 
 
 
@@ -308,24 +335,30 @@ def train_epoch_multitapse(model: nn.Module,
         loss_se_v = criterion_se_v(y_pred_se[:,0], batch[0].y[:,0].to(device))
         loss_se_a = criterion_se_a(y_pred_se[:,1], batch[0].y[:,1].to(device))
         loss_se = loss_se_v + angle_weight * loss_se_a 
-        loss_all_tap = 0. 
-        for trafo_id in y_pred_tap.keys():
-            single_trafo_y_pred_tap = y_pred_tap[trafo_id].to(device) # batch_size * num_classes 
-            single_trafo_y_target_tap = batch[0].y_tap[:,trafo_id].to(device) # batch_size * target class 
-            loss_all_tap += criterion_tap(single_trafo_y_pred_tap, single_trafo_y_target_tap) 
-        loss = loss_se + weight * loss_all_tap 
+        if len(y_pred_tap) > 0 and weight > 0.0: 
+            loss_all_tap = 0. 
+            for trafo_id in y_pred_tap.keys():
+                single_trafo_y_pred_tap = y_pred_tap[trafo_id].to(device) # batch_size * num_classes 
+                single_trafo_y_target_tap = batch[0].y_tap[:,trafo_id].to(device) # batch_size * target class 
+                loss_all_tap += criterion_tap(single_trafo_y_pred_tap, single_trafo_y_target_tap) 
+            loss = loss_se + weight * loss_all_tap
+            tap_train_loss += loss_all_tap.item()
+        else: 
+            loss = loss_se 
+            loss_all_tap = torch.tensor(0.0)
+
         loss.backward()
         
         # gradient norm 
         grad_norm = torch.norm(torch.stack([
             p.grad.norm() for p in model.parameters() if p.grad is not None
         ]))
-
         grad_norm_batch += grad_norm.item()
+
         optimizer.step()
         train_loss += loss.item()
         se_train_loss += loss_se.item()
-        tap_train_loss += loss_all_tap.item() 
+         
         
     
     return train_loss / len(loader), se_train_loss / len(loader), tap_train_loss / len(loader), grad_norm_batch/len(loader)
@@ -338,6 +371,7 @@ def eval_epoch_multitapse(model:nn.Module,
                      angle_weight: float = 1.1, 
                      device: Literal['cpu', 'cuda', 'mps'] = 'cpu') -> float: 
     model.eval()
+    all_tap_acc = dict()
 
     criterion_tap = nn.CrossEntropyLoss()
 
@@ -345,21 +379,32 @@ def eval_epoch_multitapse(model:nn.Module,
         val_loss = 0.
         se_val_loss = 0.
         all_tap_val_loss = 0.
-        for batch in loader: 
+        for batch in loader:
+            num_graphs = np.float32(len(batch[0].ptr) - 1)
             y_pred_se_val, y_pred_tap_val = model(batch)
-            # loss_se = criterion_se(y_pred_se_val, batch[0].y.to(device))
+            
             loss_se_v = criterion_se_v(y_pred_se_val[:,0], batch[0].y[:,0].to(device))
             loss_se_a = criterion_se_a(y_pred_se_val[:,1], batch[0].y[:,1].to(device))
-            loss_se = loss_se_v + loss_se_a
+            loss_se = loss_se_v + angle_weight * loss_se_a
+            
+            batch_tap_loss = 0.  
+            
             for trafo_id in y_pred_tap_val.keys():
-                single_trafo_y_pred_tap = y_pred_tap_val[trafo_id].to(device) # batch_size * num_classes 
-                single_trafo_y_target_tap = batch[0].y_tap[:,trafo_id].to(device) # batch_size * target class 
-                all_tap_val_loss += criterion_tap(single_trafo_y_pred_tap, single_trafo_y_target_tap) 
-            loss = loss_se + weight * all_tap_val_loss
+                single_trafo_y_pred_tap = y_pred_tap_val[trafo_id].to(device)
+                single_trafo_y_target_tap = batch[0].y_tap[:,trafo_id].to(device)
+                _, pred_tap = torch.max(single_trafo_y_pred_tap, dim=1)
+                
+                all_tap_acc[trafo_id] = float(sum(pred_tap == single_trafo_y_target_tap)) / float(num_graphs)
+                batch_tap_loss += criterion_tap(single_trafo_y_pred_tap, single_trafo_y_target_tap)
+            
+            mean_acc_all_trafo = sum(all_tap_acc.values())/len(y_pred_tap_val.keys())
+            loss = loss_se + weight * batch_tap_loss  
+            
             val_loss += loss.item()
             se_val_loss += loss_se.item()
-            all_tap_val_loss += all_tap_val_loss.item()
-    return val_loss / len(loader), se_val_loss / len(loader), all_tap_val_loss / len(loader)
+            all_tap_val_loss += batch_tap_loss.item()  
+
+    return val_loss / len(loader), se_val_loss / len(loader), all_tap_val_loss / len(loader), mean_acc_all_trafo
 
 ######################## TRAIN AND EVAL EPOCH FOR SE ONLY #######################################
 
@@ -398,7 +443,7 @@ def train_epoch_se(model: nn.Module,
         train_loss += loss.item()
         train_loss_ref += loss_ref.item()
 
-    return train_loss_ref / len(loader), grad_norm_batch / len(loader)
+    return train_loss / len(loader), grad_norm_batch / len(loader)
 
 def eval_epoch_se(model: nn.Module, 
              loader: DataLoader,
@@ -423,7 +468,7 @@ def eval_epoch_se(model: nn.Module,
             val_loss += loss.item()
             val_loss_ref += loss_ref.item()
     
-    return val_loss_ref / len(loader)
+    return val_loss / len(loader)
 
 ######################## TRAIN AND EVAL EPOCH FOR Vanilla GAN #######################################
 

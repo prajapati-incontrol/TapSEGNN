@@ -252,35 +252,93 @@ def generate_branch_parameters_plot(sampled_input_data: Dict, report_dir: str):
     except Exception as e: 
         print(f"Saving pairplot failed! {e}")
 
+def plot_loss_curves(all_losses: Tuple, config: Dict, report_dir: str):
+    """Plot training and validation loss curves with accuracy on secondary y-axis."""
 
-def plot_loss_curves(all_losses: Tuple, config: Dict, report_dir: str, fontsize: int = 20):
-    """Plot training and validation loss curves."""
+
+    plt.rcParams['font.family'] = 'sans-serif'
+    plt.rcParams['font.sans-serif'] = ['Helvetica', 'Arial', 'DejaVu Sans']
+    plt.rcParams['mathtext.fontset'] = 'stixsans'  # Modern math font
+    plt.rcParams['font.size'] = 11
+    plt.rcParams['axes.labelsize'] = 13
+    plt.rcParams['axes.titlesize'] = 14
+    plt.rcParams['xtick.labelsize'] = 11
+    plt.rcParams['ytick.labelsize'] = 11
+    plt.rcParams['legend.fontsize'] = 11
+    plt.rcParams['figure.dpi'] = 300
+    plt.rcParams['axes.labelweight'] = 'normal'
+    plt.rcParams['axes.titleweight'] = 'semibold'
+
     epochs = np.arange(config['training']['num_epochs'])
     train_loss_curve = all_losses[0]
     val_loss_curve = all_losses[1]
-
+    list_mean_acc_all_taps = all_losses[4]
     # Identify best epoch (lowest validation loss)
     best_epoch = np.argmin(val_loss_curve) + 1
     best_val = val_loss_curve[best_epoch - 1]
-
-    # Create plot
-    fig, ax = plt.subplots(figsize=(10, 6))
-    sns.lineplot(x=epochs, y=train_loss_curve, label='Training Loss', marker='o', ax=ax)
-    sns.lineplot(x=epochs, y=val_loss_curve, label='Validation Loss', marker='o', ax=ax)
+    
+    # Create plot with primary axis
+    fig, ax1 = plt.subplots(figsize=(8, 3))
+    
+    # Plot loss curves on primary y-axis
+    sns.lineplot(x=epochs, y=train_loss_curve, label='Training Loss', ax=ax1, color='tab:blue')
+    sns.lineplot(x=epochs, y=val_loss_curve, label='Validation Loss', ax=ax1, color='tab:orange')
     
     # Highlight the best epoch
-    plt.axvline(best_epoch, color='gray', linestyle='--', label=f"Best epoch ({best_epoch})")
-    plt.scatter(best_epoch, best_val, color='blue', zorder=5)
-    plt.text(best_epoch+0.5, best_val, f"{best_val:.4f}", color='red', verticalalignment="bottom")
-
-    ax.set_xlabel('Epochs', fontsize=fontsize)
-    ax.set_ylabel('Loss', fontsize=fontsize)
-    ax.set_title('Training and Validation Loss', fontsize=fontsize)
-    ax.tick_params(axis='both', labelsize=fontsize)
-    plt.legend()
-    plt.tight_layout()
+    ax1.axvline(best_epoch, color='gray', linestyle='--', label=f"Best epoch ({best_epoch})")
+    ax1.scatter(best_epoch, best_val, color='blue', zorder=5)
+    ax1.text(best_epoch+0.5, best_val, f"{best_val:.4f}", color='red', verticalalignment="bottom")
     
+    ax1.set_xlabel('Epochs')
+    ax1.set_ylabel('Loss')
+    ax1.tick_params(axis='both')
+    
+     
+    # Create secondary y-axis for accuracy
+    ax2 = ax1.twinx()
+    sns.lineplot(x=epochs, y=list_mean_acc_all_taps, label='Mean Accuracy', ax=ax2, color='tab:green')
+    ax2.set_ylabel('Tap Accuracy')
+    ax2.tick_params(axis='y')
+    
+    # Combine legends from both axes
+    lines1, labels1 = ax1.get_legend_handles_labels()
+    lines2, labels2 = ax2.get_legend_handles_labels()
+    ax1.legend(lines1 + lines2, labels1 + labels2, loc='best')
+    
+    # ax1.set_title('Training and Validation Loss with Accuracy', fontsize=fontsize)
+    plt.tight_layout()
     save_figure(fig, "loss", report_dir)
+
+# def plot_loss_curves(all_losses: Tuple, config: Dict, report_dir: str, fontsize: int = 20):
+#     """Plot training and validation loss curves."""
+#     epochs = np.arange(config['training']['num_epochs'])
+#     train_loss_curve = all_losses[0]
+#     val_loss_curve = all_losses[1]
+#     list_mean_acc_all_taps = all_losses[4]
+
+#     # Identify best epoch (lowest validation loss)
+#     best_epoch = np.argmin(val_loss_curve) + 1
+#     best_val = val_loss_curve[best_epoch - 1]
+
+#     # Create plot
+#     fig, ax = plt.subplots(figsize=(10, 6))
+#     sns.lineplot(x=epochs, y=train_loss_curve, label='Training Loss', marker='o', ax=ax)
+#     sns.lineplot(x=epochs, y=val_loss_curve, label='Validation Loss', marker='o', ax=ax)
+    
+    
+#     # Highlight the best epoch
+#     plt.axvline(best_epoch, color='gray', linestyle='--', label=f"Best epoch ({best_epoch})")
+#     plt.scatter(best_epoch, best_val, color='blue', zorder=5)
+#     plt.text(best_epoch+0.5, best_val, f"{best_val:.4f}", color='red', verticalalignment="bottom")
+
+#     ax.set_xlabel('Epochs', fontsize=fontsize)
+#     ax.set_ylabel('Loss', fontsize=fontsize)
+#     ax.set_title('Training and Validation Loss', fontsize=fontsize)
+#     ax.tick_params(axis='both', labelsize=fontsize)
+#     plt.legend()
+#     plt.tight_layout()
+    
+#     save_figure(fig, "loss", report_dir)
 
 def plot_gradient_norm_over_time(all_losses: Tuple, config: Dict, report_dir: str, fontsize: int = 20):
     """Plot gradient norm curve over training epochs."""
@@ -2276,15 +2334,15 @@ def compare_rmse(net: pp.pandapowerNet,
 
 #####################################################################################
 
-def get_rmse(vec1: np.array, 
-             vec2: np.array) -> float: 
-    
-    if isinstance(vec1, torch.Tensor) & isinstance(vec2, torch.Tensor):
+def get_rmse(vec1: np.ndarray, vec2: np.ndarray) -> float:
+    if isinstance(vec1, torch.Tensor):
         vec1 = vec1.cpu().detach().numpy()
+    if isinstance(vec2, torch.Tensor):
         vec2 = vec2.cpu().detach().numpy()
-    else: 
-        vec1 = np.array(vec1)
-        vec2 = np.array(vec2)
+    
+    vec1 = np.array(vec1)
+    vec2 = np.array(vec2)
+    
     return np.sqrt(np.mean((vec1 - vec2)**2))
 
 #####################################################################################

@@ -37,13 +37,16 @@ class NEGATRegressor(nn.Module):
                  gat_head: int,
                  bias: bool = True, 
                  normalize: bool = True, 
-                 adj_norm: bool = True, # normalize the adjacency matrix (recommended)
+                 adj_norm: bool = True, # normalize the adjacency matrix (recommended), 
+                 dropout: float = 0.2, 
                  device: Literal['cuda','cpu','mps'] = 'cpu',
     ):
         super().__init__()
         self.name = "NEGATRegressor" # used in logging 
         self.bias = bias
         self.device = device
+        self.dropout = dropout
+
 
         ###### GNN: node regression convolution layers ###### 
         self.node_layers = nn.ModuleList()
@@ -57,8 +60,9 @@ class NEGATRegressor(nn.Module):
                                                 bias=bias, 
                                                 normalize=adj_norm))
                 # no normalization after last layer
-                if normalize and idx < len(list_node_hidden_features): 
+                if normalize and idx < len(list_node_hidden_features) - 1: # excluding the last layer 
                     self.node_layers.append(LayerNorm(hid_feats_n))
+                    self.node_layers.append(nn.Dropout(dropout)) 
                 in_feats_n = hid_feats_n
         else: 
             hid_feats_n = in_feats_n
@@ -102,8 +106,10 @@ class NEGATRegressor(nn.Module):
         # since gatconv with multiple heats concatenates outputs, a final regression layer is required. 
         # mlp 
         self.mlp_gat = nn.Sequential(
-            nn.Linear(gat_out_features * self.gatconv.heads, 2, bias = True),
-            # nn.ReLU(), # TODO: Dropout required?
+            nn.Linear(gat_out_features * self.gatconv.heads, 32, bias = True),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(32, 2)
         )
 
         self.reset_parameters() 
@@ -856,7 +862,8 @@ class MultiTapSEGNN(NEGATRegressor):
         for trafo_id, num_trafo_neighbors_for_trafo_id in enumerate(num_trafo_neighbors):
             self.multi_trafo_mlp_a["trafo a - "+str(trafo_id)] = nn.Linear(int(num_trafo_neighbors_for_trafo_id), 1, bias=bias)
         
-        super().reset_parameters()
+        self.skip_tap_forward = False
+        # super().reset_parameters()
 
 
 
@@ -864,6 +871,9 @@ class MultiTapSEGNN(NEGATRegressor):
         node_data = tupleData[0]
 
         x_o = super().forward(tupleData)
+
+        if self.skip_tap_forward: 
+            return x_o, {}
 
         multi_trafo_pred = dict()
 

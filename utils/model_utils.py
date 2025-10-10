@@ -270,7 +270,7 @@ def get_eval_results(test_loader: DataLoader,
                 all_tap_acc[trafo_id] = float(sum(pred_tap == single_trafo_y_target_tap)) / float(num_graphs)
                 results[f'Trafo {trafo_id} Accuracy'] = all_tap_acc[trafo_id]
             results['Average_Accuracy_all_trafos'] = sum(all_tap_acc.values())/len(pred_tap_logits.keys())
-            test_loss, test_loss_se, test_loss_tap = eval_epoch_multitapse(trained_model, 
+            test_loss, test_loss_se, test_loss_tap, _ = eval_epoch_multitapse(trained_model, 
                                                                             test_loader, 
                                                                             weight=tap_weight,
                                                                             criterion_se_v=criterion_se_v, 
@@ -312,17 +312,29 @@ def get_eval_results(test_loader: DataLoader,
         
 
     results['Batchwise Average Test Loss'] = "{:e}".format(test_loss)
-    results['RMSE_V'] = "{:e}".format(get_rmse(pred_se_va[:,0], label_se_va[:,0].to(device)) / num_graphs) 
-    results['RMSE_A'] = "{:e}".format(get_rmse(pred_se_va[:,1], label_se_va[:,1].to(device)) / num_graphs)
+    # results['RMSE_V'] = "{:e}".format(get_rmse(pred_se_va[:,0], label_se_va[:,0].to(device)) / num_graphs) 
+    # results['RMSE_A'] = "{:e}".format(get_rmse(pred_se_va[:,1], label_se_va[:,1].to(device)) / num_graphs)
 
-    results['MAE_V'] = "{:e}".format(get_mae(pred_se_va[:,0], label_se_va[:,0].to(device)) / num_graphs) 
-    results['MAE_A'] = "{:e}".format(get_mae(pred_se_va[:,1], label_se_va[:,1].to(device)) / num_graphs)
+    # results['MAE_V'] = "{:e}".format(get_mae(pred_se_va[:,0], label_se_va[:,0].to(device)) / num_graphs) 
+    # results['MAE_A'] = "{:e}".format(get_mae(pred_se_va[:,1], label_se_va[:,1].to(device)) / num_graphs)
 
-    results['MaxAE_V'] = "{:e}".format(get_maxae(pred_se_va[:,0], label_se_va[:,0].to(device)) / num_graphs) 
-    results['MaxAE_A'] = "{:e}".format(get_maxae(pred_se_va[:,1], label_se_va[:,1].to(device)) / num_graphs)
+    # results['MaxAE_V'] = "{:e}".format(get_maxae(pred_se_va[:,0], label_se_va[:,0].to(device)) / num_graphs) 
+    # results['MaxAE_A'] = "{:e}".format(get_maxae(pred_se_va[:,1], label_se_va[:,1].to(device)) / num_graphs)
 
-    results['NRMSE_V'] = "{:e}".format(get_nrmse(pred_se_va[:,0], label_se_va[:,0].to(device)) / num_graphs) 
-    results['NRMSE_A'] = "{:e}".format(get_nrmse(pred_se_va[:,1], label_se_va[:,1].to(device)) / num_graphs)
+    # results['NRMSE_V'] = "{:e}".format(get_nrmse(pred_se_va[:,0], label_se_va[:,0].to(device)) / num_graphs) 
+    # results['NRMSE_A'] = "{:e}".format(get_nrmse(pred_se_va[:,1], label_se_va[:,1].to(device)) / num_graphs)
+
+    results['RMSE_V'] = "{:e}".format(get_rmse(pred_se_va[:,0], label_se_va[:,0].to(device))) 
+    results['RMSE_A'] = "{:e}".format(get_rmse(pred_se_va[:,1], label_se_va[:,1].to(device)))
+
+    results['MAE_V'] = "{:e}".format(get_mae(pred_se_va[:,0], label_se_va[:,0].to(device))) 
+    results['MAE_A'] = "{:e}".format(get_mae(pred_se_va[:,1], label_se_va[:,1].to(device)))
+
+    results['MaxAE_V'] = "{:e}".format(get_maxae(pred_se_va[:,0], label_se_va[:,0].to(device))) 
+    results['MaxAE_A'] = "{:e}".format(get_maxae(pred_se_va[:,1], label_se_va[:,1].to(device)))
+
+    results['NRMSE_V'] = "{:e}".format(get_nrmse(pred_se_va[:,0], label_se_va[:,0].to(device))) 
+    results['NRMSE_A'] = "{:e}".format(get_nrmse(pred_se_va[:,1], label_se_va[:,1].to(device)))
 
     if output_pred_va: 
         return results, pred_se_va, label_se_va 

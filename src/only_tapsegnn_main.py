@@ -103,14 +103,20 @@ def main():
     # # restore model 
     # model.load_state_dict(checkpoint["model_state_dict"])
 
-    optimizer = torch.optim.Adam(model.parameters(),lr=config['training']['lr'], weight_decay=config['training']['weight_decay'])
+    optimizer = torch.optim.Adam(model.parameters(),
+                                 lr=config['training']['lr'], 
+                                 weight_decay=config['training']['weight_decay'])
         
-    schedular = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer=optimizer, 
-                                                        mode='min',
-                                                        factor=0.1, 
-                                                        patience=1,
-                                                        min_lr=config['training']['schedular_min_lr'])
-
+    schedular = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer=optimizer,
+        mode='min',
+        factor=0.5,        # Gentler: 0.01→0.005→0.0025
+        patience=50,       # Wait 50 epochs before reducing
+        min_lr=config['training']['schedular_min_lr'],       # Lower floor for more room
+        threshold=1e-4,    # Only reduce if improvement < 0.0001
+        cooldown=20        # Wait 20 epochs after reduction
+    )
+    
     all_losses = trainer(model=model, 
                         train_loader=all_loaders[0], 
                         val_loader=all_loaders[1], 
@@ -121,6 +127,7 @@ def main():
                         early_stopping=config['training']['early_stopping'],
                         val_patience=config['training']['val_patience'], 
                         tap_weight=config['training']['loss_tap_weight'], 
+                        angle_weight=config['training']['angle_weight'],
                         device=device)
 
     results = get_eval_results(test_loader=all_loaders[2],

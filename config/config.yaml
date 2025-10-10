@@ -6,13 +6,13 @@ device: cpu
 
 # dataset 
 data: 
-  net_name: net_4bus # name of the network 
+  net_name: net_A # name of the network 
   scenario_type: 9 # scenario type to generate samples 
-  num_samples: 100 # number of samples 
+  num_samples: 16384 # number of samples 
   trafo_ids: ["all"] # what transformer ids to estimates? either a list or ["all"] for all trafos. 
   noise: True # apply noise on the non-parameters of the networks like voltage, power etc.
   scaler: True # apply scaler on the node and edge features 
-  load_std: 0.0
+  load_std: 0.1
 
 # loader 
 loader: 
@@ -39,12 +39,13 @@ model:
 # training config 
 training: 
   lr: 0.01 
-  weight_decay: 0.001 # L2 reg 
-  schedular_min_lr: 0.0001 # min lr for schedular 
-  num_epochs: 1000 # number of epochs 
-  early_stopping: False 
+  weight_decay: 0.000001 # L2 reg 
+  schedular_min_lr: 0.000001 # min lr for schedular 
+  num_epochs: 200 # number of epochs 
+  early_stopping: False
   val_patience: 5 # Validation patience for early stopping 
-  loss_tap_weight: 0.00 # weight on tap-changer prediction loss function 
+  loss_tap_weight: 0.000015 # weight on tap-changer prediction loss function
+  angle_weight: 10 
 
 # plot config 
 plot: 

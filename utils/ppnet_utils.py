@@ -753,12 +753,12 @@ def custom_se(net: pp.pandapowerNet,
         pp.create.create_measurement(net, "q", "bus", value=q_at_idx_p, 
                                      std_dev=q_std_abs, element=idx_p)
 
-    for idx, idx_p_line in enumerate(p_meas_line_idx):
-        p_meas_at_line = p_pfr_line[idx] + np.random.normal(0, pflow_noise)
-        pp.create.create_measurement(net, "p","line",value=p_meas_at_line, std_dev=pflow_noise, side='from', element=idx_p_line)
+    # for idx, idx_p_line in enumerate(p_meas_line_idx):
+    #     p_meas_at_line = p_pfr_line[idx] + np.random.normal(0, pflow_noise)
+    #     pp.create.create_measurement(net, "p","line",value=p_meas_at_line, std_dev=pflow_noise, side='from', element=idx_p_line)
     
     # no. of measurments
-    n_meas = len(v_meas_bus_idx) + 2 * len(pq_meas_bus_idx) + len(p_meas_line_idx)
+    n_meas = len(v_meas_bus_idx) + 2 * len(pq_meas_bus_idx) # + len(p_meas_line_idx)
 
     # drop the pf results 
     net = drop_pf_results(net)
