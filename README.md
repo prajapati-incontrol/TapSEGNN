@@ -13,6 +13,9 @@ Checkout my thesis at: https://resolver.tudelft.nl/uuid:ed42f877-387a-481d-8a21-
 </p>
 
 
+## Interesting insights on Power Flow Equations 
+Checkout the notebook: `notebooks/intro_to_pfe.ipynb` to get a feel of how they look like under the pandapower hood!
+
 ## Dataset Generation Summary 
 
 ![Dataset Generation Summary](graphics/FIG_dataset_generation_summary.jpeg)

@@ -8,7 +8,7 @@ device: cpu
 data: 
   net_name: net_A # name of the network 
   scenario_type: 9 # scenario type to generate samples 
-  num_samples: 16384 # number of samples 
+  num_samples: 64 # number of samples 
   trafo_ids: ["all"] # what transformer ids to estimates? either a list or ["all"] for all trafos. 
   noise: True # apply noise on the non-parameters of the networks like voltage, power etc.
   scaler: True # apply scaler on the node and edge features 
@@ -21,8 +21,8 @@ loader:
 
 # model config 
 model: 
-  # name: NEGATRegressor
-  name: MultiTapSEGNN 
+  name: NEGATRegressor
+  # name: MultiTapSEGNN 
   node_out_features: 32 # node encoding dimension GNN output
   edge_out_features: 64 # edge encoding dimension SCNN output
   list_node_hidden_features: [64] # hidden dimensions of GNN [a,b] implies two layers of dimensions a, b
@@ -41,11 +41,11 @@ training:
   lr: 0.01 
   weight_decay: 0.000001 # L2 reg 
   schedular_min_lr: 0.000001 # min lr for schedular 
-  num_epochs: 200 # number of epochs 
+  num_epochs: 500 # number of epochs 
   early_stopping: False
   val_patience: 5 # Validation patience for early stopping 
   loss_tap_weight: 0.000015 # weight on tap-changer prediction loss function
-  angle_weight: 10 
+  angle_weight: 10
 
 # plot config 
 plot: 

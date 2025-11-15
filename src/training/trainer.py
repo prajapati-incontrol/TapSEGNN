@@ -6,6 +6,7 @@ from torch.optim.lr_scheduler import LRScheduler
 from torch_geometric.loader import DataLoader
 import time
 import numpy as np
+from tqdm import tqdm
 
 
 def log_cosh_loss(pred, target): 
@@ -153,7 +154,7 @@ def trainer(model: nn.Module,
     early_stop = 0
     criterion_se_v = nn.MSELoss() 
     criterion_se_a = nn.L1Loss()
-    for epoch in range(num_epoch):
+    for epoch in tqdm(range(num_epoch)):
         # if model.name in tapse_nets:
         #     train_loss, se_train_loss, tap_train_loss = train_epoch_tapse(model, train_loader, optimizer, tap_weight, device)
         #     val_loss, se_val_loss, tap_val_loss = eval_epoch_tapse(model, val_loader, tap_weight, device)

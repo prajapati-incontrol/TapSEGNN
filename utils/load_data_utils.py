@@ -471,8 +471,8 @@ def load_sampled_input_data(sc_type: int,
                 node_feat_sparsity = np.count_nonzero(sampled_input_data['node_mask']) / sampled_input_data['node_mask'].numpy().size
                 pflow_edge_sparsity = np.count_nonzero(sampled_input_data['edge_mask'][:,:,0]) / sampled_input_data['edge_mask'][:,:,0].numpy().size
 
-                print(f"Sparsity of PV measurements at buses = {node_feat_sparsity:.1f}%")
-                print(f"Sparsity of P+ measurements at branches = {pflow_edge_sparsity:.1f}")
+                print(f"Sparsity of PV measurements at buses = {node_feat_sparsity*100:.5f}%")
+                print(f"Sparsity of P+ measurements at branches = {pflow_edge_sparsity*100:.5f}%")
 
                 return sampled_input_data
                 

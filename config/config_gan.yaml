@@ -5,10 +5,10 @@ device: cpu
 
 # dataset 
 data: 
-  net_name: MVO
+  net_name: net_A
   gen_scenario_type: 9
   dis_scenario_type: 8
-  num_samples: 4096
+  num_samples: 16384
   load_std:  0.1
   noise: True 
 
