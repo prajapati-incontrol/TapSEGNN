@@ -1,4 +1,4 @@
-.PHONY: test dev stop clean 
+.PHONY: test dev stop clean clean-vc  
 
 test: 
 	docker compose --profile test up --build 

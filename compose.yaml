@@ -13,7 +13,7 @@ services:
       - PYTHONUNBUFFERED=1
       - MATPLOTLIB_BACKEND=Agg
       - PYTHONDONTWRITEBYTECODE=1
-    command: ["python", "src/main.py"] 
+    command: ["python", "main.py"] 
 
   tapsegnn-dev:
     build: 

@@ -39,4 +39,4 @@ USER scientist
 
 
 # optional command to run the whole training. 
-CMD ["python","src/main.py"]
+CMD ["python","main.py"]
