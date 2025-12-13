@@ -66,15 +66,15 @@ def main():
     print("\n=========================== Training GAN ===========================\n")
     # instantiate model, optimizer and schedular for Generator 
     model_G = NEGATGenerator(node_input_features=dataset_G[0][0].x.shape[-1], 
-                        list_node_hidden_features=yaml_config['model_G']['list_node_hidden_features'], # [128,64], 
-                        node_out_features=yaml_config['model_G']['node_out_features'], # 64, 
-                        k_hop_node=yaml_config['model_G']['k_hop_node'], #1, 
+                        list_node_hidden_features=yaml_config['model_G']['list_node_hidden_features'],
+                        node_out_features=yaml_config['model_G']['node_out_features'],  
+                        k_hop_node=yaml_config['model_G']['k_hop_node'], 
                         edge_input_features=dataset_G[0][1].x.shape[-1], 
-                        list_edge_hidden_features=yaml_config['model_G']['list_edge_hidden_features'], #[128,64], 
-                        edge_output_features=yaml_config['model_G']['edge_out_features'], #64, 
-                        k_hop_edge=yaml_config['model_G']['k_hop_edge'], #1, 
-                        gat_out_features=yaml_config['model_G']['gat_out_features'], #32, 
-                        gat_head=yaml_config['model_G']['gat_head'], #2, 
+                        list_edge_hidden_features=yaml_config['model_G']['list_edge_hidden_features'],  
+                        edge_output_features=yaml_config['model_G']['edge_out_features'],  
+                        k_hop_edge=yaml_config['model_G']['k_hop_edge'],
+                        gat_out_features=yaml_config['model_G']['gat_out_features'],  
+                        gat_head=yaml_config['model_G']['gat_head'], 
                         device=device)
 
     optimizer_G = torch.optim.Adam(model_G.parameters(), 
